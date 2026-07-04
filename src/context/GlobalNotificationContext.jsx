@@ -117,6 +117,26 @@ export const GlobalNotificationProvider = ({ children }) => {
         });
     }, []);
 
+    React.useEffect(() => {
+        const originalAlert = window.alert;
+        window.alert = (message) => {
+            if (message === undefined || message === null) return;
+            const msg = typeof message === 'object' ? JSON.stringify(message) : String(message);
+            const lowerMsg = msg.toLowerCase();
+            
+            if (lowerMsg.includes("error") || lowerMsg.includes("fail") || lowerMsg.includes("incorrect") || lowerMsg.includes("invalid")) {
+                showNotification(msg, 'error', 5000);
+            } else if (lowerMsg.includes("success") || lowerMsg.includes("successfully") || lowerMsg.includes("saved") || lowerMsg.includes("created")) {
+                showNotification(msg, 'success', 4000);
+            } else {
+                showNotification(msg, 'warning', 4000);
+            }
+        };
+        return () => {
+            window.alert = originalAlert;
+        };
+    }, [showNotification]);
+
     return (
         <GlobalNotificationContext.Provider
             value={{

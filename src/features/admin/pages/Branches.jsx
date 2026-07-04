@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Edit, Trash2, Power, MapPin, Loader2 } from "lucide-react";
+import { X, Edit, Trash2, Power, MapPin, Loader2, AlertTriangle } from "lucide-react";
 import {
   getAllBranches,
   createBranch,
@@ -34,6 +34,7 @@ export default function Branches() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   // Delete confirmation with password
   const [deleteModal, setDeleteModal] = useState({ open: false, branchId: null, branchName: '' });
@@ -107,6 +108,7 @@ export default function Branches() {
       status: "INACTIVE"
     });
     setEditBranch(null);
+    setFormError(null);
   };
 
   async function onAdd(e) {
@@ -115,6 +117,7 @@ export default function Branches() {
 
     try {
       setSubmitting(true);
+      setFormError(null);
       const payload = {
         code: form.code,
         name: form.branchName,
@@ -135,9 +138,9 @@ export default function Branches() {
       console.error("Error creating branch:", err);
       const msg = err.response?.data?.message || "";
       if (msg.includes("exists") || msg.includes("Duplicate")) {
-        alert("Branch Code already exists");
+        setFormError("Branch Code already exists");
       } else {
-        alert("Failed to create branch. Please try again.");
+        setFormError("Failed to create branch. Please try again.");
       }
     } finally {
       setSubmitting(false);
@@ -157,6 +160,7 @@ export default function Branches() {
 
   function handleEditBranch(branch) {
     setEditBranch(branch);
+    setFormError(null);
     setForm({
       code: branch.code || "",
       branchName: branch.branchName || branch.branch_name || branch.name || "",
@@ -171,6 +175,7 @@ export default function Branches() {
 
     try {
       setSubmitting(true);
+      setFormError(null);
       const branchId = getBranchId(editBranch);
       const payload = {
         code: form.code,
@@ -184,7 +189,12 @@ export default function Branches() {
       resetForm();
     } catch (err) {
       console.error("Error updating branch:", err);
-      alert("Failed to update branch. Please try again.");
+      const msg = err.response?.data?.message || "";
+      if (msg.includes("exists") || msg.includes("Duplicate")) {
+        setFormError("Branch Code already exists");
+      } else {
+        setFormError("Failed to update branch. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -269,6 +279,13 @@ export default function Branches() {
               </button>
             )}
           </div>
+
+          {formError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm">
+              <AlertTriangle size={16} className="shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
 
           <form onSubmit={editBranch ? handleSaveEdit : onAdd} className="space-y-3">
             <div>
