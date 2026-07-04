@@ -259,10 +259,10 @@ export const getMyApprovals = async () => {
 export const updateApprovalStatus = async (approvalId, status, notes = "", role = null) => {
   try {
     const userStr = localStorage.getItem('user');
-    let approverId = null;
+    let approverId = 1;
     if (userStr) {
       const user = JSON.parse(userStr);
-      approverId = user.userId || user.id;
+      approverId = user.userId || user.id || 1;
     }
     const response = await api.patch(`${MANAGER_API_BASE}/approvals/${approvalId}`, { status, notes, role, approverId });
     return response.data.data;
@@ -299,9 +299,16 @@ export const getUserRegistrations = async (status = "PENDING") => {
 
 export const updateRegistrationStatus = async (registrationId, status, role) => {
   try {
+    const userStr = localStorage.getItem('user');
+    let approverId = 1;
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      approverId = user.userId || user.id || 1;
+    }
     const response = await api.patch(`${MANAGER_API_BASE}/approvals/${registrationId}`, {
       status,
       role,
+      approverId,
     });
     return response.data.data;
   } catch (error) {

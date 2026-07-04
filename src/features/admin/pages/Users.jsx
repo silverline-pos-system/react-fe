@@ -176,7 +176,6 @@ export default function Users() {
         const fn = fullName.trim();
         const un = username.trim();
         const em = email.trim();
-        const empId = employeeId.trim();
 
         if (!fn || !un || !em) {
             alert("Full name, username and email are required.");
@@ -189,7 +188,6 @@ export default function Users() {
                 fullName: fn,
                 username: un,
                 email: em,
-                employeeId: empId,
                 role: "MANAGER",
                 status: "ACTIVE",
             });
@@ -301,15 +299,14 @@ export default function Users() {
                             />
                         </div>
 
-                        <div>
-                            <label className="text-sm font-bold">Employee ID</label>
-                            <input
-                                className="mt-1 w-full px-3 py-2 rounded-xl border border-brand-border outline-none focus:ring-2 focus:ring-brand-secondary"
-                                value={employeeId}
-                                onChange={(e) => setEmployeeId(e.target.value)}
-                                placeholder="e.g., EMP001"
-                            />
-                        </div>
+                        {editUser && (
+                            <div>
+                                <label className="text-sm font-bold text-gray-500">Employee ID</label>
+                                <div className="mt-1 w-full px-3 py-2 rounded-xl bg-gray-50 border border-brand-border text-gray-700 font-mono text-sm">
+                                    {employeeId || "N/A"}
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <label className="text-sm font-bold">Email</label>
@@ -398,7 +395,7 @@ export default function Users() {
                                                 <td className="p-3">
                                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${(u.role || "").toUpperCase() === "MANAGER" ? "bg-purple-100 text-purple-700" :
                                                         (u.role || "").toUpperCase() === "CASHIER" ? "bg-blue-100 text-blue-700" :
-                                                        (u.role || "").toUpperCase() === "SUPER_ADMIN" ? "bg-red-505 text-white shadow-sm" :
+                                                        (u.role || "").toUpperCase() === "SUPER_ADMIN" ? "bg-red-100 text-red-700 border border-red-200" :
                                                         "bg-gray-100 text-gray-700"
                                                         }`}>
                                                         {u.role || "N/A"}
