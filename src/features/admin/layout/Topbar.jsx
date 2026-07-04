@@ -34,9 +34,13 @@ export default function Topbar({ onMenuClick = () => {} }) {
     try {
       const userObj = JSON.parse(localStorage.getItem('user') || '{}');
       const selectedBranchId = localStorage.getItem('selectedBranchId');
+      const token = localStorage.getItem('token');
       await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           branchId: selectedBranchId || 1,
           userId: userObj.userId || userObj.id,

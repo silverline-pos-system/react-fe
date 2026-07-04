@@ -718,9 +718,13 @@ function POSContent() {
             // Explicitly log the LOGOUT action to ensure comprehensive auditing
             try {
                 const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+                const token = localStorage.getItem('token');
                 await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({
                         branchId: branchId || 1,
                         userId: userObj.userId || userObj.id || session.userId,
