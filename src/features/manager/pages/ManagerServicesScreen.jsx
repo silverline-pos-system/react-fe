@@ -120,9 +120,9 @@ export default function ManagerServicesScreen() {
                 servicesService.getDtvServices(),
                 getStaffSummary().catch(() => [])
             ]);
-            const repairs = repairsRes.data || [];
-            const dtvs = dtvRes.data || [];
-            const fetchedUsers = Array.isArray(staffRes) ? staffRes : (staffRes?.data || []);
+            const repairs = repairsRes.data?.data?.content || repairsRes.data?.data || repairsRes.data || [];
+            const dtvs = dtvRes.data?.data?.content || dtvRes.data?.data || dtvRes.data || [];
+            const fetchedUsers = Array.isArray(staffRes) ? staffRes : (staffRes?.data?.data || staffRes?.data || []);
 
             repairs.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
             dtvs.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());

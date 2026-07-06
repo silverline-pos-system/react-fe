@@ -2,6 +2,28 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
+function normalizeFeatureListPayload(input) {
+    if (Array.isArray(input)) {
+        return input;
+    }
+
+    const candidates = [
+        input?.features,
+        input?.data,
+        input?.items,
+        input?.content,
+        input?.results,
+    ];
+
+    for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
+            return candidate;
+        }
+    }
+
+    return [];
+}
+
 const FeatureContext = createContext({
     features: [],
     activeFeatures: [],
@@ -17,7 +39,7 @@ export function FeatureProvider({ children }) {
     const fetchFeatures = useCallback(async () => {
         try {
             const res = await axios.get("/api/v1/system/features");
-            const data = res.data?.data || res.data || [];
+            const data = normalizeFeatureListPayload(res.data);
             setFeatures(data);
             // Cache to localStorage for faster initial loads
             localStorage.setItem("saas_features", JSON.stringify(data));
@@ -42,7 +64,7 @@ export function FeatureProvider({ children }) {
         const cached = localStorage.getItem("saas_features");
         if (cached) {
             try {
-                setFeatures(JSON.parse(cached));
+                setFeatures(normalizeFeatureListPayload(JSON.parse(cached)));
                 setLoading(false);
             } catch {
                 setFeatures([]);

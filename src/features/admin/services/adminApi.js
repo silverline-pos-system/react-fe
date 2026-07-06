@@ -1,5 +1,209 @@
 import api from "@/services/api";
 
+const PASSWORD_RESET_COUNT_STREAM_PATHS = [
+  "/v1/admin/password-requests/count/stream",
+  "/v1/admin/password-requests/stream",
+  "/v1/admin/password-requests/events",
+  "/v1/admin/events/password-requests",
+];
+
+function normalizeListPayload(input) {
+  if (Array.isArray(input)) {
+    return input;
+  }
+
+  const candidates = [
+    input?.users,
+    input?.branches,
+    input?.features,
+    input?.requests,
+    input?.passwordRequests,
+    input?.logs,
+    input?.activityLogs,
+    input?.auditLogs,
+    input?.data,
+    input?.items,
+    input?.content,
+    input?.results,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [];
+}
+
+function getApiUrl(path) {
+  return new URL(path, api.defaults.baseURL || window.location.origin).toString();
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function normalizePendingCountPayload(input) {
+  if (typeof input === "number" && Number.isFinite(input)) {
+    return input;
+  }
+
+  if (typeof input === "string") {
+    const parsed = Number.parseInt(input.trim(), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  const candidates = [
+    input?.pendingCount,
+    input?.count,
+    input?.total,
+    input?.value,
+    input?.data?.pendingCount,
+    input?.data?.count,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return candidate;
+    }
+
+    if (typeof candidate === "string") {
+      const parsed = Number.parseInt(candidate.trim(), 10);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function readPendingCountStream(url, onCount, signal) {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "text/event-stream",
+      ...getAuthHeaders(),
+    },
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Stream request failed with status ${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/event-stream") && !contentType.includes("text/plain")) {
+    throw new Error(`Unexpected stream content type: ${contentType || "unknown"}`);
+  }
+
+  if (!response.body) {
+    throw new Error("Streaming response body is not available");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let dataBuffer = "";
+
+  const flushEvent = () => {
+    if (!dataBuffer.trim()) {
+      dataBuffer = "";
+      return;
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(dataBuffer);
+    } catch {
+      parsed = dataBuffer.trim();
+    }
+
+    const count = normalizePendingCountPayload(parsed);
+    if (count !== null) {
+      onCount(count);
+    }
+
+    dataBuffer = "";
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      flushEvent();
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        flushEvent();
+        continue;
+      }
+
+      if (line.startsWith("data:")) {
+        const chunk = line.slice(5).trimStart();
+        dataBuffer = dataBuffer ? `${dataBuffer}\n${chunk}` : chunk;
+      }
+    }
+  }
+}
+
+export function subscribeToPasswordResetPendingCount(onCount, onError = () => {}) {
+  let stopped = false;
+  let reconnectTimer = null;
+  let abortController = null;
+  let attempt = 0;
+
+  const connect = async () => {
+    if (stopped) return;
+
+    abortController?.abort();
+    abortController = new AbortController();
+
+    try {
+      let lastError = null;
+
+      for (const path of PASSWORD_RESET_COUNT_STREAM_PATHS) {
+        try {
+          await readPendingCountStream(getApiUrl(path), onCount, abortController.signal);
+          if (!stopped) {
+            attempt = 0;
+            reconnectTimer = setTimeout(connect, 1000);
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error("Unable to connect to password request count stream");
+    } catch (error) {
+      if (stopped) return;
+
+      onError(error);
+      const delay = Math.min(30000, 1000 * (2 ** attempt));
+      attempt += 1;
+      reconnectTimer = setTimeout(connect, delay);
+    }
+  };
+
+  connect();
+
+  return () => {
+    stopped = true;
+    abortController?.abort();
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+    }
+  };
+}
+
 // ===== Admin Dashboard API Service =====
 
 /**
@@ -23,7 +227,7 @@ export const getUserStatsByRole = async () => {
  */
 export const getAllBranches = async () => {
   const response = await api.get("/v1/admin/branches");
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -52,7 +256,7 @@ export const searchBranches = async (query) => {
   const response = await api.get("/v1/admin/branches/search", {
     params: { q: query },
   });
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -112,7 +316,7 @@ export const getDashboardOverview = async () => {
  */
 export const getAllUsers = async () => {
   const response = await api.get("/v1/admin/users");
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -122,7 +326,7 @@ export const searchUsers = async (query) => {
   const response = await api.get("/v1/admin/users/search", {
     params: { q: query },
   });
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -204,7 +408,7 @@ export const getManagers = async () => {
  */
 export const getUsersByBranch = async (branchId) => {
   const response = await api.get(`/v1/admin/branches/${branchId}/users`);
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 // ===== System Activity Log API =====
@@ -214,7 +418,7 @@ export const getUsersByBranch = async (branchId) => {
  */
 export const getActivityLogs = async (filters = {}) => {
   const response = await api.get("/v1/admin/activity-logs", { params: filters });
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -224,7 +428,7 @@ export const searchActivityLogs = async (query, filters = {}) => {
   const response = await api.get("/v1/admin/activity-logs/search", {
     params: { q: query, ...filters },
   });
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 // ===== Password Reset API =====
@@ -316,7 +520,7 @@ export const deleteBranchWithPassword = async (branchId, password) => {
 export const getPasswordResetRequests = async (status = null) => {
   const params = status ? `?status=${status}` : "";
   const response = await api.get(`/v1/admin/password-requests${params}`);
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -324,7 +528,7 @@ export const getPasswordResetRequests = async (status = null) => {
  */
 export const getPasswordResetPendingCount = async () => {
   const response = await api.get("/v1/admin/password-requests/count");
-  return response.data;
+  return normalizePendingCountPayload(response.data);
 };
 
 /**
@@ -354,7 +558,7 @@ export const rejectPasswordReset = async (requestId, adminNotes = "") => {
  */
 export const getAllFeatures = async () => {
   const response = await api.get("/v1/admin/saas/features");
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**
@@ -362,7 +566,7 @@ export const getAllFeatures = async () => {
  */
 export const getActiveFeatures = async () => {
   const response = await api.get("/v1/admin/saas/features/active");
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**

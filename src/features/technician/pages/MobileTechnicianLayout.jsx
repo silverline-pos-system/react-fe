@@ -68,7 +68,7 @@ function RepairDashboard() {
 
             const [jobsRes, managersRes] = await Promise.all([jobsPromise, managersPromise]);
             
-            let allJobs = jobsRes.data?.data || jobsRes.data || [];
+            let allJobs = jobsRes.data?.data?.content || jobsRes.data?.data || jobsRes.data || [];
             allJobs.sort((a, b) => {
                 const dateA = new Date(a.updatedAt || a.createdAt).getTime();
                 const dateB = new Date(b.updatedAt || b.createdAt).getTime();

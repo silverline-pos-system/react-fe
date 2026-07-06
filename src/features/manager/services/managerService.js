@@ -230,7 +230,7 @@ export const getApprovals = async (status = null, branchIdOverride = undefined) 
     const branchId = branchIdOverride !== undefined ? branchIdOverride : getMyBranchId();
     if (branchId) params.append('branchId', branchId);
     const query = params.toString() ? `?${params}` : '';
-    const response = await api.get(`${MANAGER_API_BASE}/approvals${query}`);
+    const response = await api.get(`${MANAGER_API_BASE}/approvals${query}`, { silent: true });
     return response.data.data;
   } catch (error) {
     if (error?.response?.status !== 403) {

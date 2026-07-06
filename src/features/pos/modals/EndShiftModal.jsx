@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Power, ArrowRight, ShieldCheck, Banknote, AlertTriangle, CheckCircle, Calculator, CreditCard, ArrowUpRight, ArrowDownLeft, X, QrCode, RefreshCw } from 'lucide-react';
 import useEscapeClose from '@/hooks/useEscapeClose';
+import ConfirmActionModal from '@/components/common/ConfirmActionModal';
 
 const DENOMINATIONS = [5000, 1000, 500, 100, 50, 20, 10, 5, 2, 1];
 
@@ -12,6 +13,7 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
     useEscapeClose(onClose);
 
@@ -21,6 +23,38 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
             await onRefresh();
             setRefreshing(false);
         }
+    };
+
+    const executeSignOut = async () => {
+        try {
+            const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+            const selectedBranchId = localStorage.getItem('selectedBranchId');
+            const token = localStorage.getItem('token');
+            await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    branchId: selectedBranchId || 1,
+                    userId: userObj.userId || userObj.id,
+                    username: userObj.username || cashierName,
+                    role: userObj.role || userObj.userRole || 'CASHIER',
+                    actionType: 'LOGOUT',
+                    details: `User logged out: ${userObj.username || cashierName}`,
+                    metadata: "{}"
+                })
+            });
+        } catch (e) {
+            console.error("Failed to log LOGOUT", e);
+        }
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('selectedBranchId');
+        localStorage.removeItem('pos_notifications');
+        window.location.href = '/login';
     };
 
     const totalCountedCash = useMemo(() => {
@@ -101,6 +135,14 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setShowSignOutConfirm(true)}
+                            className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-slate-800 rounded-lg transition-colors flex flex-col items-center"
+                            title="Sign Out without Closing Shift"
+                        >
+                            <Power className="w-4 h-4 text-red-500 animate-pulse" />
+                            <span className="text-[9px] font-bold uppercase mt-1">Sign Out</span>
+                        </button>
                         {onRefresh && (
                             <button
                                 onClick={handleRefresh}
@@ -179,13 +221,13 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
                             <div className="flex gap-3">
                                 <button
                                     onClick={onClose}
-                                    className="flex-1 py-3 border border-slate-300 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                                    className="flex-1 py-3 border border-slate-300 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-colors text-sm uppercase"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={() => setStep(2)}
-                                    className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-colors"
+                                    className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-colors text-sm uppercase"
                                 >
                                     Next: View Summary <ArrowRight className="w-4 h-4" />
                                 </button>
@@ -391,6 +433,16 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
                         </div>
                     </div>
                 )}
+                <ConfirmActionModal
+                    isOpen={showSignOutConfirm}
+                    onClose={() => setShowSignOutConfirm(false)}
+                    onConfirm={executeSignOut}
+                    title="Sign Out"
+                    message="Are you sure you want to sign out? This will not close the active shift."
+                    type="danger"
+                    confirmLabel="Sign Out"
+                    cancelLabel="Cancel"
+                />
             </div>
         </div>
     );

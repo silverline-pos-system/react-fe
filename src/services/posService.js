@@ -67,7 +67,11 @@ export const posService = {
         let url = `/shift/active`;
         if (cashierId) url += `?cashierId=${cashierId}`;
         try {
-            return await api.get(url);
+            const res = await api.get(url, { silent: true });
+            if (res.data && res.data.success && res.data.data === null) {
+                return { data: null };
+            }
+            return res;
         } catch (error) {
             // Return null if no active shift found (404)
             if (error.response && error.response.status === 404) {

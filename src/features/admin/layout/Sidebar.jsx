@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { LayoutGrid, Users, Building2, Activity, FileText, KeyRound, Puzzle, Sparkles, Palette } from "lucide-react";
-import { getPasswordResetPendingCount } from "../services/adminApi";
+import { getPasswordResetPendingCount, subscribeToPasswordResetPendingCount } from "../services/adminApi";
 import { useSystemName } from "@/context/SystemNameContext";
 
 const baseLink = "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-gray-300 hover:bg-gray-800 hover:translate-x-1 hover:text-white";
@@ -29,17 +29,27 @@ export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} })
   const [pendingResetCount, setPendingResetCount] = useState(0);
 
   useEffect(() => {
+    let unsubscribe = () => {};
+
     const fetchCount = async () => {
       try {
         const data = await getPasswordResetPendingCount();
-        setPendingResetCount(data.pendingCount || 0);
+        setPendingResetCount(data || 0);
       } catch {
         // silent
       }
     };
+
     fetchCount();
-    const interval = setInterval(fetchCount, 30000); // poll every 30s
-    return () => clearInterval(interval);
+
+    unsubscribe = subscribeToPasswordResetPendingCount(
+      (count) => setPendingResetCount(count || 0),
+      () => {
+        // Keep the last known count if the stream is temporarily unavailable.
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   return (
