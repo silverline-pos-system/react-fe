@@ -123,9 +123,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             ]);
 
             const allPOs = [
-                ...(approvedRes.data || []),
-                ...(paidRes.data || []),
-                ...(partialRes.data || [])
+                ...(approvedRes.data?.data || approvedRes.data || []),
+                ...(paidRes.data?.data || paidRes.data || []),
+                ...(partialRes.data?.data || partialRes.data || [])
             ];
             const uniquePOs = Array.from(new Map(allPOs.map((po) => [po.poId, po])).values());
 
@@ -133,7 +133,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                 uniquePOs.map(async (po) => {
                     try {
                         const res = await poService.getPOItems(po.poId);
-                        return { poId: po.poId, items: res.data || [] };
+                        return { poId: po.poId, items: res.data?.data || res.data || [] };
                     } catch {
                         return { poId: po.poId, items: [] };
                     }
@@ -190,7 +190,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             }
             try {
                 const res = await poService.getPOItems(formData.po_id);
-                setSelectedPOItems(res.data || []);
+                setSelectedPOItems(res.data?.data || res.data || []);
             } catch (err) {
                 console.error('Failed to fetch PO items', err);
                 setSelectedPOItems([]);

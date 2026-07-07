@@ -35,7 +35,7 @@ export default function SupplierPaymentModal({ isOpen, onClose, onNotification }
         setLoading(true);
         try {
             const res = await poService.getPOsByStatus('TRANSFERRED_TO_CASHIER');
-            const data = res.data || [];
+            const data = res.data?.data || res.data || [];
             setRequests(data);
         } catch (err) {
             console.error('Failed to fetch payment requests:', err);

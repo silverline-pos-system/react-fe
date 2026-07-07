@@ -170,6 +170,11 @@ export default function ManagerPOApprovals() {
         requestedBy: r.requestedBy || r.requestedByName || r.createdByName || (r.createdBy ? `User #${r.createdBy}` : '-'),
     });
 
+    const getResponseData = (res) => {
+        if (!res) return [];
+        return res.data?.data || res.data || [];
+    };
+
     const mergePaymentCache = (po) => {
         if (!po || po.status !== 'PAID') return po;
         const cached = paymentDetailsCache[po.poId];
@@ -188,10 +193,10 @@ export default function ManagerPOApprovals() {
             let res;
             if (filter === 'pending') {
                 res = await poService.getPendingPOs();
-                setRequests((res.data || []).map(normalizePO).map(mergePaymentCache));
+                setRequests(getResponseData(res).map(normalizePO).map(mergePaymentCache));
             } else if (filter === 'approved') {
                 res = await poService.getPOsByStatus('APPROVED');
-                setRequests((res.data || []).map(normalizePO).map(mergePaymentCache));
+                setRequests(getResponseData(res).map(normalizePO).map(mergePaymentCache));
             } else {
                 const [paid, rejected, transferred] = await Promise.all([
                     poService.getPOsByStatus('PAID'),
@@ -199,9 +204,9 @@ export default function ManagerPOApprovals() {
                     poService.getPOsByStatus('TRANSFERRED_TO_CASHIER')
                 ]);
                 const allHistory = [
-                    ...(paid.data || []),
-                    ...(rejected.data || []),
-                    ...(transferred.data || [])
+                    ...getResponseData(paid),
+                    ...getResponseData(rejected),
+                    ...getResponseData(transferred)
                 ].map(normalizePO).map(mergePaymentCache);
                 allHistory.sort((a, b) => Number(b.poId || 0) - Number(a.poId || 0));
                 setRequests(allHistory);
@@ -223,12 +228,12 @@ export default function ManagerPOApprovals() {
         setLoadingItems(true);
         try {
             const res = await poService.getPOItems(po.poId);
-            setPoItems((res.data || []).map(normalizePOItem));
+            setPoItems(getResponseData(res).map(normalizePOItem));
 
             if (po.status === 'PAID') {
                 try {
                     const payRes = await poService.getPOPayments(po.poId);
-                    const normalizedPayments = (payRes.data || []).map(normalizePayment);
+                    const normalizedPayments = getResponseData(payRes).map(normalizePayment);
                     normalizedPayments.sort((a, b) => new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime());
                     setPoPayments(normalizedPayments);
                 } catch (payErr) {
@@ -244,7 +249,7 @@ export default function ManagerPOApprovals() {
                 if (!hasPaymentDetails) {
                     try {
                         const paidRes = await poService.getPOsByStatus('PAID');
-                        const paidRecord = (paidRes.data || []).map(normalizePO).find((r) => r.poId === po.poId);
+                        const paidRecord = getResponseData(paidRes).map(normalizePO).find((r) => r.poId === po.poId);
                         if (paidRecord) {
                             setSelectedPO((prev) => (prev ? { ...prev, ...paidRecord } : prev));
                         }

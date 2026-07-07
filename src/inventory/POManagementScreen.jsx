@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, FileText, CheckCircle, Clock, Save, Trash2, ArrowLeft, Download, DollarSign } from 'lucide-react';
 import { poService } from '../services/poService';
 import { useInventoryNotification } from './context/InventoryNotificationContext';
@@ -69,7 +69,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
     const fetchPOs = useCallback(async () => {
         try {
             const res = await poService.getAllPOs();
-            const sorted = (res.data || []).slice().sort((a, b) => {
+            const sorted = (res.data?.data || res.data || []).slice().sort((a, b) => {
                 const idDiff = Number(b.poId || b.id || 0) - Number(a.poId || a.id || 0);
                 if (idDiff !== 0) return idDiff;
                 return new Date(b.poDate || b.createdAt || 0).getTime() - new Date(a.poDate || a.createdAt || 0).getTime();
@@ -282,7 +282,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
         setView('detail');
         try {
             const res = await poService.getPOItems(po.poId);
-            setSelectedPOItems(res.data || []);
+            setSelectedPOItems(res.data?.data || res.data || []);
         } catch (error) {
             console.error("Failed to fetch PO items", error);
             setSelectedPOItems([]);

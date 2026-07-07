@@ -134,7 +134,7 @@ export default function MobileRepairModal({ onClose, branchId, onNotify, onAddTo
         setSelectedRepair(null);
         try {
             const res = await servicesService.searchRepairs(searchQuery.trim());
-            const data = res.data || [];
+            const data = res.data?.data || res.data || [];
             data.sort((a, b) => {
                 if (a.status === 'READY_FOR_PAYMENT' && b.status !== 'READY_FOR_PAYMENT') return -1;
                 if (b.status === 'READY_FOR_PAYMENT' && a.status !== 'READY_FOR_PAYMENT') return 1;

@@ -326,7 +326,7 @@ const CategoriesManagerModal = ({ onClose }) => {
         try {
             setLoading(true);
             const res = await expenseService.getAllCategories();
-            setCategories(res.data || []);
+            setCategories(res.data?.data || res.data || []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -432,9 +432,9 @@ export default function Expenses() {
                 expenseService.getActiveCategories(),
                 authService.getBranches()
             ]);
-            setExpenses(expRes.data || []);
-            setDashboard(dashRes.data || null);
-            setCategories(catRes.data || []);
+            setExpenses(expRes.data?.data?.content || expRes.data?.data || expRes.data || []);
+            setDashboard(dashRes.data?.data || dashRes.data || null);
+            setCategories(catRes.data?.data || catRes.data || []);
             setBranches(branchRes || []);
         } catch (err) {
             console.error(err);
