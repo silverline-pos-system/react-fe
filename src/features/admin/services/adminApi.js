@@ -1,10 +1,10 @@
 import api from "@/services/api";
 
 const PASSWORD_RESET_COUNT_STREAM_PATHS = [
-  "/v1/admin/password-requests/count/stream",
-  "/v1/admin/password-requests/stream",
-  "/v1/admin/password-requests/events",
-  "/v1/admin/events/password-requests",
+  "/api/v1/admin/password-requests/count/stream",
+  "/api/v1/admin/password-requests/stream",
+  "/api/v1/admin/password-requests/events",
+  "/api/v1/admin/events/password-requests",
 ];
 
 function normalizeListPayload(input) {
