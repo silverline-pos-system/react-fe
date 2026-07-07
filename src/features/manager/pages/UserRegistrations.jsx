@@ -88,6 +88,12 @@ export default function UserRegistrations() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [users.length]);
 
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -241,6 +247,7 @@ export default function UserRegistrations() {
       await updateRegistrationStatus(id, "APPROVED", role);
 
       setPending((prev) => prev.filter((r) => r.id !== id));
+      window.dispatchEvent(new CustomEvent('refresh-approval-count'));
 
       setTimeout(fetchUsers, 500);
 
@@ -258,6 +265,7 @@ export default function UserRegistrations() {
       setUpdating(id);
       await updateRegistrationStatus(id, "REJECTED");
       setPending((prev) => prev.filter((r) => r.id !== id));
+      window.dispatchEvent(new CustomEvent('refresh-approval-count'));
     } catch (err) {
       console.error("Error rejecting registration:", err);
       alert("Failed to reject.");
@@ -265,6 +273,13 @@ export default function UserRegistrations() {
       setUpdating(null);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedUsers = users.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize
+  );
 
   return (
     <div className="space-y-6">
@@ -459,7 +474,7 @@ export default function UserRegistrations() {
                             type="button"
                             onClick={() => openRejectModal(r)}
                             disabled={isProcessing}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 hover:border-red-200 transition-all active:scale-95 disabled:opacity-50"
+                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600 hover:shadow-lg hover:shadow-red-200 transition-all active:scale-95 disabled:opacity-50"
                           >
                             Reject
                           </button>
@@ -492,14 +507,14 @@ export default function UserRegistrations() {
             <tbody className="divide-y divide-slate-100">
               {loadingUsers ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-slate-400">Loading staff...</td>
+                  <td colSpan={5} className="p-8 text-center text-slate-400">Loading staff...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td className="p-8 text-center text-slate-400" colSpan={4}>No staff found</td>
+                  <td className="p-8 text-center text-slate-400" colSpan={5}>No staff found</td>
                 </tr>
               ) : (
-                users.map((u) => {
+                paginatedUsers.map((u) => {
                   const id = u.id;
                   const roleValue = u.role || "CASHIER";
                   const isActive = u.isActive;
@@ -542,6 +557,26 @@ export default function UserRegistrations() {
               )}
             </tbody>
           </table>
+        </div>
+        {/* Pagination controls */}
+        <div className="px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between">
+          <div className="text-xs text-slate-500">Page {safePage} of {totalPages}</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={safePage === 1}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={safePage === totalPages}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

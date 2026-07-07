@@ -72,9 +72,13 @@ export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} })
       }
     };
 
+    window.addEventListener('refresh-approval-count', fetchPendingCounts);
     fetchPendingCounts();
     const interval = setInterval(fetchPendingCounts, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refresh-approval-count', fetchPendingCounts);
+    };
   }, []);
 
   return (

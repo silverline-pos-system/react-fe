@@ -262,26 +262,62 @@ export const getBranchAlerts = async () => {
   }
 };
 
+const approvalsPromiseCache = new Map();
+let approvalsDataCache = null;
+let lastDataFetchTime = 0;
+
 // Approvals (Generic)
 export const getApprovals = async (status = null, branchIdOverride = undefined) => {
   if (!canUseManagerApprovalsApi()) {
     return [];
   }
 
-  try {
-    const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    const branchId = branchIdOverride !== undefined ? branchIdOverride : getMyBranchId();
-    if (branchId) params.append('branchId', branchId);
-    const query = params.toString() ? `?${params}` : '';
-    const response = await api.get(`${MANAGER_API_BASE}/approvals${query}`, { silent: true });
-    return response.data.data;
-  } catch (error) {
-    if (error?.response?.status !== 403) {
-      console.error("Error fetching approvals:", error);
-    }
-    throw error;
+  const branchId = branchIdOverride !== undefined ? branchIdOverride : getMyBranchId();
+  const cacheKey = `${status || 'ALL'}-${branchId || 'NONE'}`;
+  const now = Date.now();
+
+  // Short-term data cache for PENDING requests using the ALL cache
+  if (status === "PENDING" && approvalsDataCache && (now - lastDataFetchTime < 3000)) {
+    return approvalsDataCache.filter(r => (r.status || "").toUpperCase() === "PENDING");
   }
+  if (status === null && approvalsDataCache && (now - lastDataFetchTime < 3000)) {
+    return approvalsDataCache;
+  }
+
+  // Concurrent promise deduplication (within 1 second window)
+  if (approvalsPromiseCache.has(cacheKey)) {
+    return approvalsPromiseCache.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      if (branchId) params.append('branchId', branchId);
+      const query = params.toString() ? `?${params}` : '';
+      const response = await api.get(`${MANAGER_API_BASE}/approvals${query}`, { silent: true });
+      const data = response.data.data || [];
+      
+      if (status === null) {
+        approvalsDataCache = data;
+        lastDataFetchTime = Date.now();
+      }
+      
+      return data;
+    } catch (error) {
+      if (error?.response?.status !== 403) {
+        console.error("Error fetching approvals:", error);
+      }
+      throw error;
+    } finally {
+      setTimeout(() => {
+        approvalsPromiseCache.delete(cacheKey);
+      }, 1000);
+    }
+  })();
+
+  approvalsPromiseCache.set(cacheKey, promise);
+  return promise;
 };
 
 // My Recent Approvals (for cashiers to track their requests)
