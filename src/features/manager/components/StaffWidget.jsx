@@ -12,7 +12,7 @@ export default function StaffWidget({ branchId = undefined }) {
     try {
       if (!silent) setLoading(true);
       const data = await getStaffSummary(branchId);
-      const filtered = (data || []).filter(s => s.role !== "SUPER_ADMIN" && s.role !== "MANAGER");
+      const filtered = (data || []).filter(s => s.role !== "SUPER_ADMIN" && s.role !== "MANAGER" && s.status !== "Rejected");
       setStaff(filtered);
       setError(null);
       setLastUpdated(new Date());

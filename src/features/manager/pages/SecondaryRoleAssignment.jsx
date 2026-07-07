@@ -237,6 +237,7 @@ export default function SecondaryRoleAssignment() {
   };
 
   const filteredStaff = staff.filter((s) => {
+    if (s.status === "Rejected") return false;
     const name = (s.username || s.name || "").toLowerCase();
     const role = (s.role || s.userRole || "").toLowerCase();
     const q = search.toLowerCase();

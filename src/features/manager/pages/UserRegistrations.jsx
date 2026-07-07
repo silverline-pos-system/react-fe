@@ -158,7 +158,8 @@ export default function UserRegistrations() {
         lastLogin: u.lastLogin,
         isActive: u.status === "Active" || u.status === "Online",
         statusRaw: u.status,
-        approvedBy: u.approvedBy || "System"
+        approvedBy: u.approvedBy || "System",
+        approvedAt: u.approvedAt || "-"
       })).filter(u => u.role !== "SUPER_ADMIN" && u.role !== "MANAGER");
 
       setUsers(rows);
@@ -203,6 +204,18 @@ export default function UserRegistrations() {
   const openEmployeeModal = (row) => {
     setEmployeeDetails(row);
   };
+
+  useEffect(() => {
+    if (!employeeDetails) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setEmployeeDetails(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [employeeDetails]);
 
   const closeModal = () => {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
@@ -272,7 +285,7 @@ export default function UserRegistrations() {
                 <h3 className="text-xl font-bold text-slate-800">Employee Profile</h3>
                 <p className="text-sm text-slate-500">System Information for {employeeDetails.name}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setEmployeeDetails(null)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
                 aria-label="Close modal"
@@ -312,8 +325,16 @@ export default function UserRegistrations() {
                   <p className="text-sm font-semibold text-slate-700 break-all">{employeeDetails.email}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Approved By</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {employeeDetails.statusRaw === "Rejected" ? "Rejected By" : "Approved By"}
+                  </p>
                   <p className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block">{employeeDetails.approvedBy}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {employeeDetails.statusRaw === "Rejected" ? "Rejected Date & Time" : "Approved Date & Time"}
+                  </p>
+                  <p className="text-sm font-semibold text-slate-700">{employeeDetails.approvedAt || "-"}</p>
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Login Activity</p>
@@ -463,7 +484,7 @@ export default function UserRegistrations() {
               <tr>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Name</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Role</th>
-                <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Approved By</th>
+                <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Done By</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Last Login</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Status</th>
               </tr>
@@ -483,8 +504,8 @@ export default function UserRegistrations() {
                   const roleValue = u.role || "CASHIER";
                   const isActive = u.isActive;
                   return (
-                    <tr 
-                      key={id} 
+                    <tr
+                      key={id}
                       onClick={() => openEmployeeModal(u)}
                       className="hover:bg-slate-50 transition-colors cursor-pointer group"
                     >
@@ -506,9 +527,11 @@ export default function UserRegistrations() {
                         {u.lastLogin || "Never"}
                       </td>
                       <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-wide border ${isActive
-                          ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                          : "bg-slate-100 text-slate-500 border-slate-200"
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-wide border ${u.statusRaw === "Rejected"
+                            ? "bg-red-50 text-red-600 border-red-100"
+                            : isActive
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                              : "bg-slate-100 text-slate-500 border-slate-200"
                           }`}>
                           {u.statusRaw || "Inactive"}
                         </span>
