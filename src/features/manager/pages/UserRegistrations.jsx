@@ -241,6 +241,7 @@ export default function UserRegistrations() {
       await updateRegistrationStatus(id, "APPROVED", role);
 
       setPending((prev) => prev.filter((r) => r.id !== id));
+      window.dispatchEvent(new CustomEvent('refresh-approval-count'));
 
       setTimeout(fetchUsers, 500);
 
@@ -258,6 +259,7 @@ export default function UserRegistrations() {
       setUpdating(id);
       await updateRegistrationStatus(id, "REJECTED");
       setPending((prev) => prev.filter((r) => r.id !== id));
+      window.dispatchEvent(new CustomEvent('refresh-approval-count'));
     } catch (err) {
       console.error("Error rejecting registration:", err);
       alert("Failed to reject.");

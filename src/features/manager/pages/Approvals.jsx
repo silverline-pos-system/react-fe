@@ -218,6 +218,7 @@ export default function Approvals() {
         const updatedItem = { ...item, status: status, approvedAt: new Date().toISOString() };
         setPending(prev => prev.filter(r => r.id !== id));
         setHistory(prev => sortHistoryNewestFirst([updatedItem, ...prev]));
+        window.dispatchEvent(new CustomEvent('refresh-approval-count'));
       }
     } catch (err) {
       console.error("Error updating status:", err);
@@ -414,7 +415,7 @@ export default function Approvals() {
                           </div>
                           <div>
                             <div className="font-medium text-slate-700">{r.requestedBy}</div>
-                            <div className="text-[10px] text-slate-400">{r.email || "Staff"}</div>
+                            <div className="text-[10px] text-slate-400">{r.phone && r.phone !== "-" ? r.phone : "Staff"}</div>
                           </div>
                         </div>
                       </td>
