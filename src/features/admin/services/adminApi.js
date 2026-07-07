@@ -1,11 +1,6 @@
 import api from "@/services/api";
 
-const PASSWORD_RESET_COUNT_STREAM_PATHS = [
-  "/api/v1/admin/password-requests/count/stream",
-  "/api/v1/admin/password-requests/stream",
-  "/api/v1/admin/password-requests/events",
-  "/api/v1/admin/events/password-requests",
-];
+const PASSWORD_RESET_COUNT_STREAM_PATH = "/api/v1/admin/password-requests/stream";
 
 function normalizeListPayload(input) {
   if (Array.isArray(input)) {
@@ -167,22 +162,11 @@ export function subscribeToPasswordResetPendingCount(onCount, onError = () => {}
     abortController = new AbortController();
 
     try {
-      let lastError = null;
-
-      for (const path of PASSWORD_RESET_COUNT_STREAM_PATHS) {
-        try {
-          await readPendingCountStream(getApiUrl(path), onCount, abortController.signal);
-          if (!stopped) {
-            attempt = 0;
-            reconnectTimer = setTimeout(connect, 1000);
-          }
-          return;
-        } catch (error) {
-          lastError = error;
-        }
+      await readPendingCountStream(getApiUrl(PASSWORD_RESET_COUNT_STREAM_PATH), onCount, abortController.signal);
+      if (!stopped) {
+        attempt = 0;
+        reconnectTimer = setTimeout(connect, 1000);
       }
-
-      throw lastError || new Error("Unable to connect to password request count stream");
     } catch (error) {
       if (stopped) return;
 
