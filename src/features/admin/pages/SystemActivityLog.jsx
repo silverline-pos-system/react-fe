@@ -59,13 +59,13 @@ export default function SystemActivityLog() {
 
   const getBranchName = (id) => {
     if (!id) return "-";
-    const b = branches.find(branch => (branch.id || branch.branchId) === id);
+    const b = branches.find(branch => (branch.id || branch.branchId) == id);
     return b ? (b.name || b.branchName) : "Unknown Branch";
   };
 
   const getUserName = (id) => {
     if (!id) return "-";
-    const u = users.find(user => (user.userId || user.id) === id);
+    const u = users.find(user => (user.userId || user.id) == id);
     return u ? (u.fullName || u.username) : `User ${id}`;
   };
 

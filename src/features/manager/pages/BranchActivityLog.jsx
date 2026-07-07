@@ -225,16 +225,29 @@ export default function BranchActivityLog() {
             const data = await getBranchActivityLog(selectedBranchId || 1, { date: dateFilter });
 
             if (Array.isArray(data)) {
-                const formattedData = data.map(item => {
-                    let dateObj;
-                    const ts = item.timestamp || item.createdAt;
-                    if (Array.isArray(ts)) {
-                        dateObj = new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0);
-                    } else {
-                        dateObj = new Date(ts);
-                    }
-                    return { ...item, parsedDate: dateObj };
-                });
+                const formattedData = data
+                    .map(item => {
+                        let dateObj;
+                        const ts = item.timestamp || item.createdAt;
+                        if (Array.isArray(ts)) {
+                            dateObj = new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0);
+                        } else {
+                            dateObj = new Date(ts);
+                        }
+                        return { ...item, parsedDate: dateObj };
+                    })
+                    .filter(item => {
+                        let role = item.userRole || 'System';
+                        try {
+                            if (item.metadata) {
+                                const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata;
+                                const nestedUserInfo = meta?.user_info || {};
+                                const metaRole = nestedUserInfo.role || meta.role;
+                                if (metaRole) role = metaRole;
+                            }
+                        } catch (err) {}
+                        return role !== 'SUPER_ADMIN' && role !== 'Admin';
+                    });
                 setActivities(formattedData);
             } else {
                 setActivities([]);
