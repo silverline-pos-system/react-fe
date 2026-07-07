@@ -31,11 +31,13 @@ const SupplierManagementScreen = ({
     }, [searchQuery]);
 
     const filteredSuppliers = useMemo(() => {
-        return suppliers.filter(s =>
-            s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.company_name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return (suppliers || []).filter(s => {
+            const name = String(s?.name || '').toLowerCase();
+            const code = String(s?.code || '').toLowerCase();
+            const company = String(s?.company_name || s?.companyName || '').toLowerCase();
+            const query = searchQuery.toLowerCase();
+            return name.includes(query) || code.includes(query) || company.includes(query);
+        });
     }, [suppliers, searchQuery]);
 
     const paginatedSuppliers = useMemo(() => {

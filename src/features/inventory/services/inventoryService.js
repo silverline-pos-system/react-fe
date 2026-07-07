@@ -728,7 +728,8 @@ export const inventoryService = {
             console.log('[InventoryService] GET suppliers');
             const response = await api.get('/inventory/suppliers');
             console.log('[InventoryService] GET suppliers response:', response.data);
-            const suppliers = response.data.data || response.data;
+            const resData = response.data.data || response.data;
+            const suppliers = Array.isArray(resData) ? resData : (Array.isArray(resData?.content) ? resData.content : []);
             const mapped = mapSuppliersFromBackend(suppliers);
             console.log('[InventoryService] GET suppliers mapped:', mapped.length, 'items');
             return mapped;
