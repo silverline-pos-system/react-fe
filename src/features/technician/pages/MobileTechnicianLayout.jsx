@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Routes, Route } from 'react-router-dom';
 import { Wrench, CheckCircle, Activity, Play, TabletSmartphone, Cpu, User, AlertCircle, CheckCircle2, DollarSign, LogOut, ChevronRight, X, Phone, MapPin, Plus } from 'lucide-react';
 import { servicesService } from '@/services/servicesService';
-import { createApprovalRequest } from '@/services/managerService';
 import MobileRepairModal from '@/features/pos/modals/MobileRepairModal';
 import SecondaryRoleBanner from '@/components/common/SecondaryRoleBanner';
 import useEscapeClose from '@/hooks/useEscapeClose';
 import { useSystemName } from '@/context/SystemNameContext';
 import ConfirmActionModal from '@/components/common/ConfirmActionModal';
+import PORequestModal from '../components/PORequestModal';
+import FinalizeCostModal from '../components/FinalizeCostModal';
+import { formatRepairNo, getRepairStatusBadgeColor } from '../utils/techHelpers';
 
 function RepairDashboard() {
     const [user, setUser] = useState({});
@@ -19,13 +21,11 @@ function RepairDashboard() {
     const [updatingId, setUpdatingId] = useState(null);
     const [showFinalizeModal, setShowFinalizeModal] = useState(false);
     const [selectedJob, setSelectedJob] = useState(null);
-    const [finalForm, setFinalForm] = useState({ managerId: '', estimatedCost: '', costNote: '' });
     const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     // PO Request State
     const [showPOModal, setShowPOModal] = useState(false);
-    const [poForm, setPoForm] = useState({ amount: '', notes: '' });
-    const [poSubmitting, setPoSubmitting] = useState(false);
+
 
     // New Repair Modal State
     const [showNewRepairModal, setShowNewRepairModal] = useState(false);
@@ -128,78 +128,8 @@ function RepairDashboard() {
         }
     };
 
-    const handlePORequest = async (e) => {
-        e.preventDefault();
-        const requestedAmount = Number.parseFloat(String(poForm.amount || '').trim());
-        if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-            alert('Please enter a valid amount.');
-            return;
-        }
-
-        setPoSubmitting(true);
-        try {
-            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-            const branchId = storedUser.branchId || localStorage.getItem('selectedBranchId') || null;
-            const approvalReference = `TECH-PO-${Date.now()}`;
-            const approvalPayload = {
-                type: 'CASH_FLOW_PAID_OUT',
-                category: 'CASH_FLOW_PAID_OUT',
-                status: 'PENDING',
-                reference: approvalReference,
-                referenceNo: approvalReference,
-                amount: requestedAmount,
-                reason: `PO request for repair parts${poForm.notes ? ` | ${poForm.notes.trim()}` : ''}`,
-                description: poForm.notes.trim(),
-                notes: 'Technician PO request submitted from the mobile repair dashboard.',
-                requestedBy: storedUser.fullName || storedUser.name || storedUser.username || 'Technician',
-                email: storedUser.email || '',
-                branchId: branchId ? Number(branchId) : null,
-                takenByManager: false
-            };
-
-            await createApprovalRequest(approvalPayload);
-            setShowPOModal(false);
-            setPoForm({ amount: '', notes: '' });
-            alert('PO request sent to the Manager for approval. The cashier can process it after approval.');
-        } catch (error) {
-            if (error.response?.status === 403) {
-                alert('You do not have permission to submit PO requests. Please ask a Manager.');
-            } else {
-                console.error('Failed to create PO request:', error);
-                const msg = error.response?.data?.message || 'Failed to send PO request.';
-                alert(msg);
-            }
-        } finally {
-            setPoSubmitting(false);
-        }
-    };
-
-    const handleRequestFinalize = async (e) => {
-        e.preventDefault();
-        if (!finalForm.managerId || !finalForm.estimatedCost) {
-            alert('Please select a manager and enter an estimated cost.');
-            return;
-        }
-
-        try {
-            setUpdatingId(selectedJob.repairId);
-            await servicesService.requestFinalizeCost(selectedJob.repairId, finalForm.managerId, finalForm.estimatedCost, finalForm.costNote);
-            setShowFinalizeModal(false);
-            setFinalForm({ managerId: '', estimatedCost: '', costNote: '' });
-            setSelectedJob(null);
-            fetchData();
-        } catch (error) {
-            alert('Failed to send finalize request');
-            console.error(error);
-        } finally {
-            setUpdatingId(null);
-        }
-    };
-
     const openFinalizeModal = (job) => {
         setSelectedJob(job);
-        const defaultManager = managers.length === 1 ? managers[0].userId : (managers.length === 0 ? 1 : '');
-        setFinalForm({ managerId: defaultManager, estimatedCost: job.estimatedCost || '', costNote: '' });
         setShowFinalizeModal(true);
     };
 
@@ -211,27 +141,6 @@ function RepairDashboard() {
     const activeMyJobs = myJobs.filter(j => !['PAID', 'DELIVERED'].includes(j.status));
     const completedDeliveredJobs = myJobs.filter(j => ['PAID', 'DELIVERED'].includes(j.status));
 
-    const formatRepairNo = (job) => {
-        if (job?.repairNo && String(job.repairNo).trim()) return job.repairNo;
-        const id = String(job?.repairId || '').padStart(6, '0');
-        const d = new Date(job?.createdAt || job?.updatedAt || Date.now());
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        return `REP-${y}${m}-${id}`;
-    };
-
-    const getStatusBadgeColor = (status) => {
-        const colors = {
-            RECEIVED: 'bg-yellow-100 text-yellow-700',
-            DIAGNOSED: 'bg-orange-100 text-orange-700',
-            IN_PROGRESS: 'bg-blue-100 text-blue-700',
-            WAITING_APPROVAL: 'bg-purple-100 text-purple-700',
-            READY_FOR_PAYMENT: 'bg-emerald-100 text-emerald-700',
-            PAID: 'bg-green-100 text-green-700',
-            DELIVERED: 'bg-slate-100 text-slate-700'
-        };
-        return colors[status] || 'bg-slate-100 text-slate-700';
-    };
 
     return (
         <div className="p-3 sm:p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
@@ -555,124 +464,19 @@ function RepairDashboard() {
 
             {/* Request Finalize Modal */}
             {showFinalizeModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="px-6 py-4 bg-purple-50 text-purple-800 border-b border-purple-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <DollarSign size={20} /> Request Finalize Cost
-                            </h3>
-                            <button onClick={() => setShowFinalizeModal(false)} className="text-purple-400 hover:text-purple-600">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleRequestFinalize} className="p-6 space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Select Manager / Supervisor</label>
-                                {managers.length > 0 ? (
-                                    <select
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-semibold"
-                                        value={finalForm.managerId}
-                                        onChange={e => setFinalForm({ ...finalForm, managerId: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">-- Select Person --</option>
-                                        {managers.map(m => (
-                                            <option key={m.userId} value={m.userId}>{m.fullName} ({m.role.replace(/_/g, ' ')})</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        type="number"
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-semibold"
-                                        value={finalForm.managerId}
-                                        onChange={e => setFinalForm({ ...finalForm, managerId: e.target.value })}
-                                        placeholder="Enter Manager ID (e.g. 1)"
-                                        required
-                                    />
-                                )}
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Estimated / Final Cost (Rs)</label>
-                                <input
-                                    type="number"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-lg font-bold"
-                                    value={finalForm.estimatedCost}
-                                    onChange={e => setFinalForm({ ...finalForm, estimatedCost: e.target.value })}
-                                    required
-                                    min="0"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Notes / Replaced Parts Details</label>
-                                <textarea
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
-                                    value={finalForm.costNote}
-                                    onChange={e => setFinalForm({ ...finalForm, costNote: e.target.value })}
-                                    rows="3"
-                                    placeholder="Explain the work done and parts used"
-                                />
-                            </div>
-                            <div className="pt-2 flex gap-3">
-                                <button type="button" onClick={() => setShowFinalizeModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={updatingId === selectedJob?.repairId} className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2">
-                                    {updatingId === selectedJob?.repairId ? <Activity size={18} className="animate-spin" /> : 'Send Request'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <FinalizeCostModal
+                    onClose={() => { setShowFinalizeModal(false); setSelectedJob(null); }}
+                    onSuccess={() => { setShowFinalizeModal(false); setSelectedJob(null); fetchData(); }}
+                    selectedJob={selectedJob}
+                    managers={managers}
+                />
             )}
 
             {/* PO Request Modal */}
             {showPOModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="px-6 py-4 bg-blue-50 text-blue-800 border-b border-blue-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <DollarSign size={20} /> Request Parts Funds (PO)
-                            </h3>
-                            <button onClick={() => setShowPOModal(false)} className="text-blue-400 hover:text-blue-600">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <form onSubmit={handlePORequest} className="p-6 space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Estimated Amount Needed (Rs)</label>
-                                <input
-                                    type="number"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"
-                                    value={poForm.amount}
-                                    onChange={e => setPoForm({ ...poForm, amount: e.target.value })}
-                                    required
-                                    min="1"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">Parts Needed / Notes</label>
-                                <textarea
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                    value={poForm.notes}
-                                    onChange={e => setPoForm({ ...poForm, notes: e.target.value })}
-                                    rows="3"
-                                    required
-                                    placeholder="List the parts you need to buy and the repair job number if applicable..."
-                                />
-                            </div>
-                            <div className="pt-2 flex gap-3">
-                                <button type="button" onClick={() => setShowPOModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={poSubmitting} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2">
-                                    {poSubmitting ? <Activity size={18} className="animate-spin" /> : 'Send PO Request'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <PORequestModal
+                    onClose={() => setShowPOModal(false)}
+                />
             )}
 
             {/* Notification Toast */}

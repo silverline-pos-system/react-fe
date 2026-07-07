@@ -1,1 +1,0 @@
-import{r as o}from"./react-aOV2nmk6.js";function i(e,t=!0){o.useEffect(()=>{if(!t||!e)return;const r=n=>{n.key==="Escape"&&(n.stopPropagation(),e())};return window.addEventListener("keydown",r),()=>window.removeEventListener("keydown",r)},[e,t])}export{i as u};
