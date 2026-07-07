@@ -153,6 +153,20 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                 }
             }
 
+            const isToday = (dateStr) => {
+                if (!dateStr) return false;
+                try {
+                    const date = new Date(dateStr);
+                    if (isNaN(date.getTime())) return false;
+                    const today = new Date();
+                    return date.getDate() === today.getDate() &&
+                        date.getMonth() === today.getMonth() &&
+                        date.getFullYear() === today.getFullYear();
+                } catch {
+                    return false;
+                }
+            };
+
             // Deduplicate and sort by newest first
             const dedup = new Map();
             merged.forEach(item => {
@@ -161,14 +175,16 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                 }
             });
 
-            const rows = Array.from(dedup.values()).sort((a, b) => {
-                const ta = new Date(a.createdAt || 0).getTime();
-                const tb = new Date(b.createdAt || 0).getTime();
-                return tb - ta;
-            });
+            const rows = Array.from(dedup.values())
+                .filter((r) => isToday(r.createdAt))
+                .sort((a, b) => {
+                    const ta = new Date(a.createdAt || 0).getTime();
+                    const tb = new Date(b.createdAt || 0).getTime();
+                    return tb - ta;
+                });
 
-            console.log("Deduplicated Payout Rows:", rows);
-            setPayoutRequests(rows.filter((r) => !processedPayoutIds.has(String(r.id))));
+            console.log("Deduplicated Today Payout Rows:", rows);
+            setPayoutRequests(rows);
         } catch (err) {
             console.error('Failed to fetch payout requests:', err);
             setPayoutRequests([]);
@@ -436,17 +452,6 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                localStorage.removeItem('pos_processed_paid_out');
-                                                setProcessedPayoutIds(new Set());
-                                                fetchPayoutRequests();
-                                            }}
-                                            className="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-semibold"
-                                        >
-                                            Reset Processed
-                                        </button>
-                                        <button
-                                            type="button"
                                             onClick={fetchPayoutRequests}
                                             className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold"
                                         >
@@ -462,7 +467,7 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                                             Loading payout requests...
                                         </div>
                                     ) : payoutRequests.length === 0 ? (
-                                        <div className="p-10 text-center text-slate-500 text-sm">No payout requests found for your current shift.</div>
+                                        <div className="p-10 text-center text-slate-500 text-sm">No payout requests found for today.</div>
                                     ) : (
                                         <div className="max-h-[420px] overflow-y-auto">
                                             <table className="w-full text-left text-sm text-slate-700">
@@ -486,14 +491,20 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                                                             <td className="p-3 font-semibold text-slate-800">LKR {Number(row.amount || 0).toLocaleString()}</td>
                                                             <td className="p-3 text-right">
                                                                 {row.status === 'APPROVED' ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleProcessApprovedPayout(row)}
-                                                                        disabled={processingPayoutId === row.id}
-                                                                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors disabled:opacity-60"
-                                                                    >
-                                                                        {processingPayoutId === row.id ? 'Processing...' : 'Pay & Print'}
-                                                                    </button>
+                                                                    processedPayoutIds.has(String(row.id)) ? (
+                                                                        <span className="text-xs text-green-600 font-bold flex items-center justify-end gap-1">✓ Printed</span>
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleProcessApprovedPayout(row)}
+                                                                            disabled={processingPayoutId === row.id}
+                                                                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors disabled:opacity-60"
+                                                                        >
+                                                                            {processingPayoutId === row.id ? 'Processing...' : 'Pay & Print'}
+                                                                        </button>
+                                                                    )
+                                                                ) : row.status === 'REJECTED' ? (
+                                                                    <span className="text-xs text-red-500 font-bold">Rejected</span>
                                                                 ) : (
                                                                     <span className="text-xs text-slate-400 italic">Waiting...</span>
                                                                 )}
