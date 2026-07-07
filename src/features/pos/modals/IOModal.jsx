@@ -473,7 +473,7 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                                         {payoutRequests.map((row) => (
                                             <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/60">
                                                 <td className="p-3 font-mono text-xs font-bold">
-                                                    <span className={`px-2 py-1 rounded-full ${row.status === 'APPROVED' ? 'bg-green-100 text-green-700' : row.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    <span className={`px-2 py-1 rounded-full border ${row.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : row.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                                                         {row.status}
                                                     </span>
                                                 </td>
@@ -488,7 +488,7 @@ export default function IOModal({ type, shiftId, cashierName, branchInfo, onClos
                                                                 type="button"
                                                                 onClick={() => handleProcessApprovedPayout(row)}
                                                                 disabled={processingPayoutId === row.id}
-                                                                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors disabled:opacity-60"
+                                                                className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm hover:shadow-emerald-100 transition-colors disabled:opacity-60"
                                                             >
                                                                 {processingPayoutId === row.id ? 'Processing...' : 'Pay & Print'}
                                                             </button>

@@ -92,6 +92,8 @@ export default function Approvals() {
     pendingCount: 0,
     pendingAmount: 0,
     managerTakenPayoutTotal: 0,
+    todayPayInTotal: 0,
+    todayPayoutTotal: 0,
   });
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState("ALL");
   const [historyStatusFilter, setHistoryStatusFilter] = useState("ALL");
@@ -141,6 +143,16 @@ export default function Approvals() {
     return 0;
   };
 
+  const isToday = (row) => {
+    const ts = getHistorySortTimestamp(row);
+    if (!ts) return false;
+    const date = new Date(ts);
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+  };
+
   const sortHistoryNewestFirst = (rows) => [...rows].sort((left, right) => {
     const timeDiff = getHistorySortTimestamp(right) - getHistorySortTimestamp(left);
     if (timeDiff !== 0) return timeDiff;
@@ -163,6 +175,17 @@ export default function Approvals() {
       const pendingRows = allRows.filter((r) => (r.status || "").toUpperCase() === 'PENDING');
       const historyRows = allRows.filter((r) => (r.status || "").toUpperCase() !== 'PENDING');
 
+      const approvedRows = allRows.filter((r) => (r.status || "").toUpperCase() === 'APPROVED');
+      const todayApprovedRows = approvedRows.filter(isToday);
+
+      const todayPayInTotal = todayApprovedRows
+        .filter((r) => (r.category || "").toUpperCase().includes("PAID_IN"))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+      const todayPayoutTotal = todayApprovedRows
+        .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT"))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
       setPending(pendingRows);
       setHistory(sortHistoryNewestFirst(historyRows));
       setSummary({
@@ -171,6 +194,8 @@ export default function Approvals() {
         managerTakenPayoutTotal: allRows
           .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT") && isManagerTakenPayout(r))
           .reduce((sum, r) => sum + Number(r.amount || 0), 0),
+        todayPayInTotal,
+        todayPayoutTotal,
       });
 
     } catch (err) {
@@ -218,6 +243,8 @@ export default function Approvals() {
         const updatedItem = { ...item, status: status, approvedAt: new Date().toISOString() };
         setPending(prev => prev.filter(r => r.id !== id));
         setHistory(prev => sortHistoryNewestFirst([updatedItem, ...prev]));
+        window.dispatchEvent(new CustomEvent('refresh-approval-count'));
+        fetchApprovals();
       }
     } catch (err) {
       console.error("Error updating status:", err);
@@ -301,7 +328,6 @@ export default function Approvals() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Approvals & Requests</h1>
-          <p className="text-slate-500 text-sm mt-1">Manage pending requests and view history</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -313,7 +339,7 @@ export default function Approvals() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="text-xs uppercase tracking-wide text-slate-500">Pending Requests</div>
           <div className="text-2xl font-extrabold text-slate-800 mt-1">{summary.pendingCount}</div>
@@ -323,7 +349,15 @@ export default function Approvals() {
           <div className="text-2xl font-extrabold text-amber-700 mt-1">LKR {summary.pendingAmount.toLocaleString()}</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Manager-Taken Payout Total</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">Today's Approved Pay In</div>
+          <div className="text-2xl font-extrabold text-emerald-700 mt-1">LKR {summary.todayPayInTotal.toLocaleString()}</div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Today's Approved Payout</div>
+          <div className="text-2xl font-extrabold text-red-600 mt-1">LKR {summary.todayPayoutTotal.toLocaleString()}</div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Manager-Taken Total</div>
           <div className="text-2xl font-extrabold text-indigo-700 mt-1">LKR {summary.managerTakenPayoutTotal.toLocaleString()}</div>
         </div>
       </div>
@@ -347,6 +381,7 @@ export default function Approvals() {
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Type / Ref</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Reason</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Amount</th>
+                <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Branch</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Requested By</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Action</th>
               </tr>
@@ -354,7 +389,7 @@ export default function Approvals() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400">
+                  <td colSpan={7} className="p-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
                       <span>Checking for requests...</span>
@@ -363,7 +398,7 @@ export default function Approvals() {
                 </tr>
               ) : pending.length === 0 ? (
                 <tr>
-                  <td className="p-12 text-center text-slate-400" colSpan={6}>
+                  <td className="p-12 text-center text-slate-400" colSpan={7}>
                     <div className="flex flex-col items-center gap-2">
                       <CheckCircle className="w-8 h-8 text-emerald-100 text-emerald-400" />
                       <span>No pending approvals found</span>
@@ -407,6 +442,9 @@ export default function Approvals() {
                       <td className="p-4 font-bold text-slate-800">
                         {displayAmount}
                       </td>
+                      <td className="p-4 text-slate-600 font-medium">
+                        {r.branchName || "-"}
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
@@ -414,7 +452,7 @@ export default function Approvals() {
                           </div>
                           <div>
                             <div className="font-medium text-slate-700">{r.requestedBy}</div>
-                            <div className="text-[10px] text-slate-400">{r.email || "Staff"}</div>
+                            <div className="text-[10px] text-slate-400">{r.phone && r.phone !== "-" ? r.phone : "Staff"}</div>
                           </div>
                         </div>
                       </td>
@@ -430,7 +468,7 @@ export default function Approvals() {
                           <button
                             onClick={() => openConfirmModal(r.id, "Rejected")}
                             disabled={isProcessing}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 hover:border-red-200 transition-all active:scale-95 disabled:opacity-50"
+                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600 shadow-sm hover:shadow-red-200 transition-all active:scale-95 disabled:opacity-50"
                           >
                             Reject
                           </button>
@@ -469,7 +507,7 @@ export default function Approvals() {
           <select
             value={historyCategoryFilter}
             onChange={(e) => setHistoryCategoryFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white"
+            className="pl-3 pr-8 py-2 text-xs border border-slate-200 rounded-lg bg-white cursor-pointer hover:border-slate-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="ALL">All Types</option>
             <option value="CASH_FLOW_PAID_IN">Paid In</option>
@@ -479,7 +517,7 @@ export default function Approvals() {
           <select
             value={historyStatusFilter}
             onChange={(e) => setHistoryStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white"
+            className="pl-3 pr-8 py-2 text-xs border border-slate-200 rounded-lg bg-white cursor-pointer hover:border-slate-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="ALL">All Statuses</option>
             <option value="APPROVED">Approved</option>
@@ -505,6 +543,7 @@ export default function Approvals() {
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Reference</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Reason / Description</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Amount</th>
+                <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Branch</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Requested By</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Approved By</th>
                 <th className="text-left p-4 font-semibold uppercase text-xs tracking-wider">Approved At</th>
@@ -514,11 +553,11 @@ export default function Approvals() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">Loading history...</td>
+                  <td colSpan={9} className="p-8 text-center text-slate-400">Loading history...</td>
                 </tr>
               ) : historyFiltered.length === 0 ? (
                 <tr>
-                  <td className="p-8 text-center text-slate-400" colSpan={8}>No approval history</td>
+                  <td className="p-8 text-center text-slate-400" colSpan={9}>No approval history</td>
                 </tr>
               ) : (
                 historyPaginated.map((r) => {
@@ -539,6 +578,9 @@ export default function Approvals() {
                       </td>
                       <td className="p-4 font-bold text-slate-700 text-xs">
                         {displayAmount}
+                      </td>
+                      <td className="p-4 text-slate-600 font-medium">
+                        {r.branchName || "-"}
                       </td>
                       <td className="p-4 text-slate-600">
                         {r.requestedBy}

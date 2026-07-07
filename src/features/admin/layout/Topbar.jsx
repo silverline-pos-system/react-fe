@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { LogOut, LayoutDashboard, Users, Menu } from "lucide-react";
 import ConfirmActionModal from "@/components/common/ConfirmActionModal";
 
-export default function Topbar({ onMenuClick = () => {} }) {
+export default function Topbar({ onMenuClick = () => { } }) {
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -37,7 +37,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
       const token = localStorage.getItem('token');
       await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
