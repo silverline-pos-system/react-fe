@@ -5,12 +5,15 @@ import { useInventoryNotification } from '@/features/inventory/context/Inventory
 import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
 import Pagination from '@/components/common/Pagination';
 
-const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], setActiveScreen }) => {
+const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], brands = [], setActiveScreen }) => {
     const { success, error, warning, confirm } = useInventoryNotification();
     const [view, setView] = useState('list'); // 'list', 'create', 'detail'
     const [pos, setPos] = useState([]);
     const [selectedPO, setSelectedPO] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [supplierFilter, setSupplierFilter] = useState('ALL');
+    const [dateFilter, setDateFilter] = useState('');
     const [selectedPOItems, setSelectedPOItems] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -37,15 +40,17 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
 
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+    const [selectedBrandId, setSelectedBrandId] = useState('');
 
     const AUTO_PO_PATTERN = /^PO-\d{8}-\d{3}$/;
 
-    const generateReadablePONumber = (dateStr) => {
+    const generateReadablePONumber = (dateStr, customPos) => {
         const safeDate = dateStr || new Date().toISOString().split('T')[0];
         const compactDate = safeDate.replace(/-/g, '');
         const prefix = `PO-${compactDate}-`;
+        const targetPos = customPos || pos || [];
 
-        const maxSequence = (pos || []).reduce((max, po) => {
+        const maxSequence = targetPos.reduce((max, po) => {
             const poNo = String(po?.poNo || '').toUpperCase();
             if (!poNo.startsWith(prefix)) return max;
             const seq = parseInt(poNo.slice(prefix.length), 10);
@@ -63,13 +68,26 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
     const productOptions = items.filter(item => {
         if (selectedCategoryId && item.category_id !== parseInt(selectedCategoryId)) return false;
         if (selectedSubCategoryId && item.subcategory_id !== parseInt(selectedSubCategoryId)) return false;
+        if (selectedBrandId && item.brand_id !== parseInt(selectedBrandId)) return false;
         return true;
     });
 
     const fetchPOs = useCallback(async () => {
         try {
             const res = await poService.getAllPOs();
-            const sorted = (res.data?.data || res.data || []).slice().sort((a, b) => {
+            const rawData = res.data?.data || res.data || [];
+            let poList = [];
+            if (Array.isArray(rawData)) {
+                poList = rawData;
+            } else if (rawData.content && Array.isArray(rawData.content)) {
+                poList = rawData.content;
+            } else if (rawData.data && Array.isArray(rawData.data)) {
+                poList = rawData.data;
+            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
+                poList = rawData.data.content;
+            }
+
+            const sorted = poList.slice().sort((a, b) => {
                 const idDiff = Number(b.poId || b.id || 0) - Number(a.poId || a.id || 0);
                 if (idDiff !== 0) return idDiff;
                 return new Date(b.poDate || b.createdAt || 0).getTime() - new Date(a.poDate || a.createdAt || 0).getTime();
@@ -155,20 +173,28 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
         }
     };
 
-    const filteredPOs = pos.filter(po =>
-        po.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        suppliers.find(s => s.supplier_id === po.supplierId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPOs = pos.filter(po => {
+        const supplierName = suppliers.find(s => s.supplier_id === po.supplierId)?.name || '';
+        const matchesSearch = !searchQuery || 
+            po.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            supplierName.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'ALL' || po.status === statusFilter;
+        const matchesSupplier = supplierFilter === 'ALL' || String(po.supplierId) === String(supplierFilter);
+        const matchesDate = !dateFilter || po.poDate === dateFilter;
+
+        return matchesSearch && matchesStatus && matchesSupplier && matchesDate;
+    });
 
     const paginatedPOs = filteredPOs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery]);
+    }, [searchQuery, statusFilter, supplierFilter, dateFilter]);
 
     const handleAddItem = () => {
         if (!currentItem.productId || !currentItem.quantity || !currentItem.unitPrice) {
-            warning('Please fill in Product, Quantity and Unit Price');
+            warning('Please fill in Product, Quantity and Cost Price');
             return;
         }
 
@@ -197,6 +223,9 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             batchCode: '',
             discount: '0'
         });
+        setSelectedCategoryId('');
+        setSelectedSubCategoryId('');
+        setSelectedBrandId('');
     };
 
     const handleAddItemKeyDown = useEnterKeyNavigation(handleAddItem);
@@ -253,14 +282,21 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             };
 
             const res = await poService.createPO(payload);
-            success(`PO Created Successfully! PO No: ${res.data.poNo}`);
+            const createdPO = res.data?.data || res.data;
+            let updatedPos = pos;
+            if (createdPO) {
+                updatedPos = [createdPO, ...pos];
+                setPos(updatedPos);
+            }
+
+            success(`PO Created Successfully! PO No: ${createdPO?.poNo || 'New PO'}`);
             localStorage.removeItem('poDraft');
             setView('list');
 
             fetchPOs();
 
             setFormData({
-                poNo: generateReadablePONumber(new Date().toISOString().split('T')[0]),
+                poNo: generateReadablePONumber(new Date().toISOString().split('T')[0], updatedPos),
                 supplierId: '',
                 poDate: new Date().toISOString().split('T')[0],
                 expectedDeliveryDate: '',
@@ -442,14 +478,16 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <span>LKR {(selectedPO.netAmount || 0).toFixed(2)}</span>
                                 </div>
                             </div>
-                            <div className="border-t pt-4">
-                                <button
-                                    onClick={handleCreateDispatchFromPO}
-                                    className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
-                                >
-                                    <CheckCircle size={20} /> Create Dispatch from PO
-                                </button>
-                            </div>
+                            {selectedPO.status && String(selectedPO.status).toUpperCase() !== 'REJECTED' && (
+                                <div className="border-t pt-4">
+                                    <button
+                                        onClick={handleCreateDispatchFromPO}
+                                        className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle size={20} /> Create Dispatch from PO
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -481,9 +519,10 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
                                     <input
                                         type="text"
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50"
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-100 text-gray-500 cursor-not-allowed select-none focus:outline-none"
                                         value={formData.poNo || generateReadablePONumber(formData.poDate)}
-                                        onChange={(e) => setFormData({ ...formData, poNo: e.target.value })}
+                                        readOnly
+                                        disabled
                                         placeholder="PO-20260314-001"
                                     />
                                 </div>
@@ -511,9 +550,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                             setFormData((prev) => ({
                                                 ...prev,
                                                 poDate: nextDate,
-                                                poNo: (!prev.poNo || AUTO_PO_PATTERN.test(prev.poNo))
-                                                    ? generateReadablePONumber(nextDate)
-                                                    : prev.poNo,
+                                                poNo: generateReadablePONumber(nextDate),
                                             }));
                                         }}
                                     />
@@ -573,7 +610,20 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                         ))}
                                     </select>
                                 </div>
-                                <div className="md:col-span-6">
+                                <div className="md:col-span-3">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Brand</label>
+                                    <select
+                                        className="w-full text-sm"
+                                        value={selectedBrandId}
+                                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                                    >
+                                        <option value="">All Brands</option>
+                                        {brands.map(b => (
+                                            <option key={b.brand_id} value={b.brand_id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-3">
                                     <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
                                     <select
                                         className="w-full text-sm"
@@ -601,16 +651,16 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.quantity}
+                                        value={currentItem.quantity ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Cost Price</label>
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.unitPrice}
+                                        value={currentItem.unitPrice ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, unitPrice: e.target.value })}
                                     />
                                 </div>
@@ -619,7 +669,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.sellingPrice}
+                                        value={currentItem.sellingPrice ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, sellingPrice: e.target.value })}
                                     />
                                 </div>
@@ -628,7 +678,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.mrp}
+                                        value={currentItem.mrp ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, mrp: e.target.value })}
                                     />
                                 </div>
@@ -637,7 +687,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.discount}
+                                        value={currentItem.discount ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, discount: e.target.value })}
                                         placeholder="0.00"
                                     />
@@ -770,6 +820,61 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-center gap-4">
+                    <div className="flex flex-col min-w-[140px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-lg bg-white cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING_APPROVAL">Pending Approval</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PAID">Paid</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col min-w-[180px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Supplier</label>
+                        <select
+                            value={supplierFilter}
+                            onChange={(e) => setSupplierFilter(e.target.value)}
+                            className="pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-lg bg-white cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="ALL">All Suppliers</option>
+                            {suppliers.map(s => (
+                                <option key={s.supplier_id} value={s.supplier_id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col min-w-[140px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">PO Date</label>
+                        <input
+                            type="date"
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {(statusFilter !== 'ALL' || supplierFilter !== 'ALL' || dateFilter || searchQuery) && (
+                        <button
+                            onClick={() => {
+                                setStatusFilter('ALL');
+                                setSupplierFilter('ALL');
+                                setDateFilter('');
+                                setSearchQuery('');
+                            }}
+                            className="self-end mb-1 text-xs text-red-500 hover:text-red-700 font-bold transition-colors"
+                        >
+                            Clear Filters
+                        </button>
+                    )}
+                </div>
+
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
