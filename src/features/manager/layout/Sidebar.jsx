@@ -19,6 +19,7 @@ import {
   getApprovals, 
   getPendingDispatches 
 } from "../services/managerService";
+import { poService } from "@/features/procurement/services/poService";
 import { useSystemName } from "@/context/SystemNameContext";
 import FeatureGate from "@/components/common/FeatureGate";
 
@@ -63,10 +64,19 @@ export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} })
           setCashierPendingCount(filtered.length);
         }
 
-        const dispatchData = await getPendingDispatches();
-        if (Array.isArray(dispatchData)) {
-          setInventoryPendingCount(dispatchData.length);
+        const poRes = await poService.getPendingPOs();
+        const poRaw = poRes.data?.data || poRes.data || [];
+        let poList = [];
+        if (Array.isArray(poRaw)) {
+          poList = poRaw;
+        } else if (poRaw.content && Array.isArray(poRaw.content)) {
+          poList = poRaw.content;
+        } else if (poRaw.data && Array.isArray(poRaw.data)) {
+          poList = poRaw.data;
+        } else if (poRaw.data?.content && Array.isArray(poRaw.data.content)) {
+          poList = poRaw.data.content;
         }
+        setInventoryPendingCount(poList.length);
       } catch (err) {
         console.error("Failed to fetch pending counts sidebar", err);
       }

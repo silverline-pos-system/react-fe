@@ -77,6 +77,10 @@ export const mapProductToBackend = (frontendProduct) => {
 };
 
 export const mapProductsFromBackend = (backendProducts) => {
+    if (!backendProducts) return [];
+    if (backendProducts.content && Array.isArray(backendProducts.content)) {
+        return backendProducts.content.map(mapProductFromBackend);
+    }
     if (!Array.isArray(backendProducts)) return [];
     return backendProducts.map(mapProductFromBackend);
 };

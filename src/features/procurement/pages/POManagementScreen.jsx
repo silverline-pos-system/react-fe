@@ -11,6 +11,9 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
     const [pos, setPos] = useState([]);
     const [selectedPO, setSelectedPO] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [supplierFilter, setSupplierFilter] = useState('ALL');
+    const [dateFilter, setDateFilter] = useState('');
     const [selectedPOItems, setSelectedPOItems] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -69,7 +72,19 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
     const fetchPOs = useCallback(async () => {
         try {
             const res = await poService.getAllPOs();
-            const sorted = (res.data?.data || res.data || []).slice().sort((a, b) => {
+            const rawData = res.data?.data || res.data || [];
+            let poList = [];
+            if (Array.isArray(rawData)) {
+                poList = rawData;
+            } else if (rawData.content && Array.isArray(rawData.content)) {
+                poList = rawData.content;
+            } else if (rawData.data && Array.isArray(rawData.data)) {
+                poList = rawData.data;
+            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
+                poList = rawData.data.content;
+            }
+
+            const sorted = poList.slice().sort((a, b) => {
                 const idDiff = Number(b.poId || b.id || 0) - Number(a.poId || a.id || 0);
                 if (idDiff !== 0) return idDiff;
                 return new Date(b.poDate || b.createdAt || 0).getTime() - new Date(a.poDate || a.createdAt || 0).getTime();
@@ -155,16 +170,24 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
         }
     };
 
-    const filteredPOs = pos.filter(po =>
-        po.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        suppliers.find(s => s.supplier_id === po.supplierId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPOs = pos.filter(po => {
+        const supplierName = suppliers.find(s => s.supplier_id === po.supplierId)?.name || '';
+        const matchesSearch = !searchQuery || 
+            po.poNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            supplierName.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'ALL' || po.status === statusFilter;
+        const matchesSupplier = supplierFilter === 'ALL' || String(po.supplierId) === String(supplierFilter);
+        const matchesDate = !dateFilter || po.poDate === dateFilter;
+
+        return matchesSearch && matchesStatus && matchesSupplier && matchesDate;
+    });
 
     const paginatedPOs = filteredPOs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery]);
+    }, [searchQuery, statusFilter, supplierFilter, dateFilter]);
 
     const handleAddItem = () => {
         if (!currentItem.productId || !currentItem.quantity || !currentItem.unitPrice) {
@@ -481,9 +504,10 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
                                     <input
                                         type="text"
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50"
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-100 text-gray-500 cursor-not-allowed select-none focus:outline-none"
                                         value={formData.poNo || generateReadablePONumber(formData.poDate)}
-                                        onChange={(e) => setFormData({ ...formData, poNo: e.target.value })}
+                                        readOnly
+                                        disabled
                                         placeholder="PO-20260314-001"
                                     />
                                 </div>
@@ -511,9 +535,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                             setFormData((prev) => ({
                                                 ...prev,
                                                 poDate: nextDate,
-                                                poNo: (!prev.poNo || AUTO_PO_PATTERN.test(prev.poNo))
-                                                    ? generateReadablePONumber(nextDate)
-                                                    : prev.poNo,
+                                                poNo: generateReadablePONumber(nextDate),
                                             }));
                                         }}
                                     />
@@ -770,6 +792,61 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-center gap-4">
+                    <div className="flex flex-col min-w-[140px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-lg bg-white cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING_APPROVAL">Pending Approval</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PAID">Paid</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col min-w-[180px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Supplier</label>
+                        <select
+                            value={supplierFilter}
+                            onChange={(e) => setSupplierFilter(e.target.value)}
+                            className="pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-lg bg-white cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="ALL">All Suppliers</option>
+                            {suppliers.map(s => (
+                                <option key={s.supplier_id} value={s.supplier_id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col min-w-[140px]">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">PO Date</label>
+                        <input
+                            type="date"
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {(statusFilter !== 'ALL' || supplierFilter !== 'ALL' || dateFilter || searchQuery) && (
+                        <button
+                            onClick={() => {
+                                setStatusFilter('ALL');
+                                setSupplierFilter('ALL');
+                                setDateFilter('');
+                                setSearchQuery('');
+                            }}
+                            className="self-end mb-1 text-xs text-red-500 hover:text-red-700 font-bold transition-colors"
+                        >
+                            Clear Filters
+                        </button>
+                    )}
+                </div>
+
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>

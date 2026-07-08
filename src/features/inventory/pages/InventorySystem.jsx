@@ -665,6 +665,7 @@ const InventorySystemContent = () => {
                     subCategories={subCategories}
                     suppliers={suppliers}
                     branches={branches}
+                    refreshItems={refreshItems}
                 />;
             case 'po-mgmt':
                 return <POManagementScreen suppliers={suppliers} categories={categories} brands={brands} items={items} subCategories={subCategories} setActiveScreen={setActiveScreen} branches={branches} />;

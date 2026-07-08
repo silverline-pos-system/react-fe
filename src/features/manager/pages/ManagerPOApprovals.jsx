@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     CheckCircle, AlertTriangle, Send, Loader2, RefreshCw,
     Banknote, FileText, X, Search, DollarSign, Package, Clock
@@ -6,6 +6,56 @@ import {
 import { poService } from '@/features/procurement/services/poService';
 import inventoryService from '@/features/inventory/services/inventoryService';
 import useEscapeClose from '@/hooks/useEscapeClose';
+
+// Reject Modal Component
+function RejectModal({ isOpen, onClose, onConfirm, loading }) {
+    const [reason, setReason] = useState("");
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setReason("");
+            setTimeout(() => inputRef.current?.focus(), 100);
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+                <div className="p-6">
+                    <h3 className="text-lg font-bold text-slate-800">Reject Purchase Order</h3>
+                    <p className="text-sm text-slate-500 mt-1">Please enter the reason for rejecting this purchase order request.</p>
+                    <textarea
+                        ref={inputRef}
+                        className="w-full mt-4 p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 text-sm resize-none"
+                        placeholder="e.g. Invalid item pricing or incorrect quantities"
+                        rows="3"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                    />
+                </div>
+                <div className="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t border-slate-100">
+                    <button
+                        onClick={onClose}
+                        disabled={loading}
+                        className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => onConfirm(reason)}
+                        disabled={loading || !reason.trim()}
+                        className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-750 shadow-sm rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        {loading ? "Rejecting..." : "Reject"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function ManagerPOApprovals() {
     const [requests, setRequests] = useState([]);
@@ -16,6 +66,7 @@ export default function ManagerPOApprovals() {
     // Modal state
     const [selectedPO, setSelectedPO] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [poItems, setPoItems] = useState([]);
     const [poPayments, setPoPayments] = useState([]);
     const [loadingItems, setLoadingItems] = useState(false);
@@ -282,13 +333,12 @@ export default function ManagerPOApprovals() {
         }
     };
 
-    const handleReject = async () => {
+    const handleRejectConfirm = async (reason) => {
         if (!selectedPO) return;
-        const reason = window.prompt("Enter rejection reason:");
-        if (!reason && reason !== "") return;
         setProcessing(true);
         try {
             await poService.processPOPayment(selectedPO.poId, { status: 'REJECTED', notes: reason });
+            setIsRejectModalOpen(false);
             setShowModal(false);
             setSelectedPO(null);
             fetchRequests();
@@ -563,6 +613,10 @@ export default function ManagerPOApprovals() {
                                             <span className="text-gray-500 text-sm font-medium">Payment Terms</span>
                                             <span className="font-bold text-gray-900">{selectedPO.paymentTerms || 'Standard'}</span>
                                         </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500 text-sm font-medium">Expected Delivery Date</span>
+                                            <span className="font-bold text-gray-900">{selectedPO.expectedDeliveryDate || 'N/A'}</span>
+                                        </div>
                                         <div className="flex justify-between pt-2 border-t border-gray-50 mt-1">
                                             <span className="text-gray-500 text-sm font-medium">Requested By</span>
                                             <span className="font-bold text-indigo-600">{selectedPO.requestedBy}</span>
@@ -606,26 +660,32 @@ export default function ManagerPOApprovals() {
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm text-left">
-                                            <thead className="bg-white text-gray-500 font-bold uppercase text-xs tracking-wider border-b border-gray-100">
-                                                <tr>
-                                                    <th className="px-5 py-4">Product Name</th>
-                                                    <th className="px-5 py-4 text-center">Qty Ordered</th>
-                                                    <th className="px-5 py-4 text-right">Unit Price</th>
-                                                    <th className="px-5 py-4 text-right">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-50">
-                                                {poItems.length === 0 ? (
-                                                    <tr><td colSpan="4" className="text-center py-8 text-gray-400">No items found.</td></tr>
-                                                ) : poItems.map((item, idx) => (
-                                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                                        <td className="px-5 py-4 font-semibold text-gray-800">{getProductName(item)}</td>
-                                                        <td className="px-5 py-4 text-center font-bold text-indigo-600 bg-indigo-50/30">{item.qtyOrdered}</td>
-                                                        <td className="px-5 py-4 text-right text-gray-600">LKR {(item.unitPrice || 0).toFixed(2)}</td>
-                                                        <td className="px-5 py-4 text-right font-black text-gray-900">LKR {(item.total || 0).toFixed(2)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
+                                             <thead className="bg-white text-gray-500 font-bold uppercase text-xs tracking-wider border-b border-gray-100">
+                                                 <tr>
+                                                     <th className="px-5 py-4">Product Name</th>
+                                                     <th className="px-5 py-4 text-center">Qty Ordered</th>
+                                                     <th className="px-5 py-4 text-right">Unit Price</th>
+                                                     <th className="px-5 py-4 text-right">Selling Price</th>
+                                                     <th className="px-5 py-4 text-right">MRP</th>
+                                                     <th className="px-5 py-4 text-right">Discount</th>
+                                                     <th className="px-5 py-4 text-right">Total</th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody className="divide-y divide-gray-50">
+                                                 {poItems.length === 0 ? (
+                                                     <tr><td colSpan="7" className="text-center py-8 text-gray-400">No items found.</td></tr>
+                                                 ) : poItems.map((item, idx) => (
+                                                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                         <td className="px-5 py-4 font-semibold text-gray-800">{getProductName(item)}</td>
+                                                         <td className="px-5 py-4 text-center font-bold text-indigo-600 bg-indigo-50/30">{item.qtyOrdered}</td>
+                                                         <td className="px-5 py-4 text-right text-gray-600">LKR {(item.unitPrice || 0).toFixed(2)}</td>
+                                                         <td className="px-5 py-4 text-right text-gray-600">LKR {(item.sellingPrice || 0).toFixed(2)}</td>
+                                                         <td className="px-5 py-4 text-right text-gray-600">LKR {(item.mrp || 0).toFixed(2)}</td>
+                                                         <td className="px-5 py-4 text-right text-red-500 font-medium">- LKR {(item.discount || 0).toFixed(2)}</td>
+                                                         <td className="px-5 py-4 text-right font-black text-gray-900">LKR {(item.total || 0).toFixed(2)}</td>
+                                                     </tr>
+                                                 ))}
+                                             </tbody>
                                         </table>
                                     </div>
                                 )}
@@ -750,7 +810,7 @@ export default function ManagerPOApprovals() {
                             {selectedPO.status === 'PENDING_APPROVAL' && (
                                 <>
                                     <button
-                                        onClick={handleReject}
+                                        onClick={() => setIsRejectModalOpen(true)}
                                         disabled={processing}
                                         className="px-6 py-3 border-2 border-red-200 hover:bg-red-50 text-red-600 rounded-xl font-bold transition-colors disabled:opacity-50"
                                     >
@@ -790,6 +850,15 @@ export default function ManagerPOApprovals() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isRejectModalOpen && (
+                <RejectModal
+                    isOpen={isRejectModalOpen}
+                    onClose={() => setIsRejectModalOpen(false)}
+                    onConfirm={handleRejectConfirm}
+                    loading={processing}
+                />
             )}
         </div>
     );

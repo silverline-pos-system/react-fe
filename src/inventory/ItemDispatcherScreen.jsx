@@ -120,16 +120,18 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         try {
             setFetchingPOs(true);
             // Load APPROVED, PAID, and PARTIALLY_RECEIVED POs
-            const [approvedRes, paidRes, partialRes] = await Promise.all([
+            const [approvedRes, paidRes, partialRes, transferredRes] = await Promise.all([
                 poService.getPOsByStatus('APPROVED'),
                 poService.getPOsByStatus('PAID'),
-                poService.getPOsByStatus('PARTIALLY_RECEIVED')
+                poService.getPOsByStatus('PARTIALLY_RECEIVED'),
+                poService.getPOsByStatus('TRANSFERRED_TO_CASHIER')
             ]);
 
             const allPOs = [
                 ...(approvedRes.data?.data || approvedRes.data || []),
                 ...(paidRes.data?.data || paidRes.data || []),
-                ...(partialRes.data?.data || partialRes.data || [])
+                ...(partialRes.data?.data || partialRes.data || []),
+                ...(transferredRes.data?.data || transferredRes.data || [])
             ];
             const uniquePOs = Array.from(new Map(allPOs.map((po) => [po.poId, po])).values());
 

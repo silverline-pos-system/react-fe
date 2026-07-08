@@ -33,8 +33,18 @@ export default function SupplierPaymentModal({ isOpen, onClose, onNotification }
         setLoading(true);
         try {
             const res = await poService.getPOsByStatus('TRANSFERRED_TO_CASHIER');
-            const data = res.data?.data || res.data || [];
-            setRequests(data);
+            const rawData = res.data?.data || res.data || [];
+            let poList = [];
+            if (Array.isArray(rawData)) {
+                poList = rawData;
+            } else if (rawData.content && Array.isArray(rawData.content)) {
+                poList = rawData.content;
+            } else if (rawData.data && Array.isArray(rawData.data)) {
+                poList = rawData.data;
+            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
+                poList = rawData.data.content;
+            }
+            setRequests(poList);
         } catch (err) {
             console.error('Failed to fetch payment requests:', err);
             onNotification?.('error', 'Error', 'Failed to load supplier payment requests');

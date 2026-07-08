@@ -286,8 +286,18 @@ function POSContent() {
     const fetchSupplierPaymentCount = useCallback(async () => {
         try {
             const res = await poService.getPOsByStatus('TRANSFERRED_TO_CASHIER');
-            const count = Array.isArray(res.data) ? res.data.length : 0;
-            setSupplierPaymentCount(count);
+            const rawData = res.data?.data || res.data || [];
+            let poList = [];
+            if (Array.isArray(rawData)) {
+                poList = rawData;
+            } else if (rawData.content && Array.isArray(rawData.content)) {
+                poList = rawData.content;
+            } else if (rawData.data && Array.isArray(rawData.data)) {
+                poList = rawData.data;
+            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
+                poList = rawData.data.content;
+            }
+            setSupplierPaymentCount(poList.length);
         } catch (err) {
             if (err?.response?.status !== 403) {
                 console.error('Failed to fetch supplier payment count:', err);
@@ -1517,7 +1527,7 @@ function POSContent() {
                 }
             }
 
-            if (!activeModal && document.activeElement.tagName !== 'INPUT') {
+            if (!activeModal && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
                 inputRef.current?.focus();
             }
         };
