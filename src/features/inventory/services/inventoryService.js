@@ -493,6 +493,7 @@ export const inventoryService = {
                     batchCode: item.batch_code ?? item.batchCode ?? null,
                     expiryDate: item.expiry_date ?? item.expiryDate ?? null,
                     qtyReceived: item.quantity ?? item.qtyReceived,
+                    qtyDispatched: item.quantity ?? item.qtyReceived ?? item.qtyDispatched,
                     unitPrice: item.unit_price ?? item.unitPrice,
                     sellingPrice: item.selling_price ?? item.sellingPrice ?? null,
                     mrp: item.mrp ?? null,
@@ -680,6 +681,18 @@ export const inventoryService = {
         }
     },
 
+    getAvailableTransferSerials: async (productId, branchId) => {
+        try {
+            const response = await api.get('/inventory/serials/available-transfer', {
+                params: { productId, branchId }
+            });
+            return response.data.data || response.data;
+        } catch (error) {
+            console.error('Error fetching available transfer serials:', error);
+            throw error;
+        }
+    },
+
     lookupSerials: async (params = {}) => {
         try {
             const response = await api.get('/inventory/serials/lookup', {
@@ -696,12 +709,13 @@ export const inventoryService = {
             });
 
             const payload = response.data || {};
+            const innerData = payload.data || {};
             return {
-                rows: payload.data || [],
-                page: payload.page ?? 0,
-                size: payload.size ?? 20,
-                totalElements: payload.totalElements ?? 0,
-                totalPages: payload.totalPages ?? 0
+                rows: innerData.items || [],
+                page: innerData.page ?? 0,
+                size: innerData.size ?? 20,
+                totalElements: innerData.totalElements ?? 0,
+                totalPages: innerData.totalPages ?? 0
             };
         } catch (error) {
             console.error('Error looking up serials:', error);

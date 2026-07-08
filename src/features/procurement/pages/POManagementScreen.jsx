@@ -5,7 +5,7 @@ import { useInventoryNotification } from '@/features/inventory/context/Inventory
 import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
 import Pagination from '@/components/common/Pagination';
 
-const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], setActiveScreen }) => {
+const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], brands = [], setActiveScreen }) => {
     const { success, error, warning, confirm } = useInventoryNotification();
     const [view, setView] = useState('list'); // 'list', 'create', 'detail'
     const [pos, setPos] = useState([]);
@@ -40,15 +40,17 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
 
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+    const [selectedBrandId, setSelectedBrandId] = useState('');
 
     const AUTO_PO_PATTERN = /^PO-\d{8}-\d{3}$/;
 
-    const generateReadablePONumber = (dateStr) => {
+    const generateReadablePONumber = (dateStr, customPos) => {
         const safeDate = dateStr || new Date().toISOString().split('T')[0];
         const compactDate = safeDate.replace(/-/g, '');
         const prefix = `PO-${compactDate}-`;
+        const targetPos = customPos || pos || [];
 
-        const maxSequence = (pos || []).reduce((max, po) => {
+        const maxSequence = targetPos.reduce((max, po) => {
             const poNo = String(po?.poNo || '').toUpperCase();
             if (!poNo.startsWith(prefix)) return max;
             const seq = parseInt(poNo.slice(prefix.length), 10);
@@ -66,6 +68,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
     const productOptions = items.filter(item => {
         if (selectedCategoryId && item.category_id !== parseInt(selectedCategoryId)) return false;
         if (selectedSubCategoryId && item.subcategory_id !== parseInt(selectedSubCategoryId)) return false;
+        if (selectedBrandId && item.brand_id !== parseInt(selectedBrandId)) return false;
         return true;
     });
 
@@ -191,7 +194,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
 
     const handleAddItem = () => {
         if (!currentItem.productId || !currentItem.quantity || !currentItem.unitPrice) {
-            warning('Please fill in Product, Quantity and Unit Price');
+            warning('Please fill in Product, Quantity and Cost Price');
             return;
         }
 
@@ -220,6 +223,9 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             batchCode: '',
             discount: '0'
         });
+        setSelectedCategoryId('');
+        setSelectedSubCategoryId('');
+        setSelectedBrandId('');
     };
 
     const handleAddItemKeyDown = useEnterKeyNavigation(handleAddItem);
@@ -276,14 +282,21 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
             };
 
             const res = await poService.createPO(payload);
-            success(`PO Created Successfully! PO No: ${res.data.poNo}`);
+            const createdPO = res.data?.data || res.data;
+            let updatedPos = pos;
+            if (createdPO) {
+                updatedPos = [createdPO, ...pos];
+                setPos(updatedPos);
+            }
+
+            success(`PO Created Successfully! PO No: ${createdPO?.poNo || 'New PO'}`);
             localStorage.removeItem('poDraft');
             setView('list');
 
             fetchPOs();
 
             setFormData({
-                poNo: generateReadablePONumber(new Date().toISOString().split('T')[0]),
+                poNo: generateReadablePONumber(new Date().toISOString().split('T')[0], updatedPos),
                 supplierId: '',
                 poDate: new Date().toISOString().split('T')[0],
                 expectedDeliveryDate: '',
@@ -465,14 +478,16 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <span>LKR {(selectedPO.netAmount || 0).toFixed(2)}</span>
                                 </div>
                             </div>
-                            <div className="border-t pt-4">
-                                <button
-                                    onClick={handleCreateDispatchFromPO}
-                                    className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
-                                >
-                                    <CheckCircle size={20} /> Create Dispatch from PO
-                                </button>
-                            </div>
+                            {selectedPO.status && String(selectedPO.status).toUpperCase() !== 'REJECTED' && (
+                                <div className="border-t pt-4">
+                                    <button
+                                        onClick={handleCreateDispatchFromPO}
+                                        className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle size={20} /> Create Dispatch from PO
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -595,7 +610,20 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                         ))}
                                     </select>
                                 </div>
-                                <div className="md:col-span-6">
+                                <div className="md:col-span-3">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Brand</label>
+                                    <select
+                                        className="w-full text-sm"
+                                        value={selectedBrandId}
+                                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                                    >
+                                        <option value="">All Brands</option>
+                                        {brands.map(b => (
+                                            <option key={b.brand_id} value={b.brand_id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-3">
                                     <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
                                     <select
                                         className="w-full text-sm"
@@ -623,16 +651,16 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.quantity}
+                                        value={currentItem.quantity ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Cost Price</label>
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.unitPrice}
+                                        value={currentItem.unitPrice ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, unitPrice: e.target.value })}
                                     />
                                 </div>
@@ -641,7 +669,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.sellingPrice}
+                                        value={currentItem.sellingPrice ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, sellingPrice: e.target.value })}
                                     />
                                 </div>
@@ -650,7 +678,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.mrp}
+                                        value={currentItem.mrp ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, mrp: e.target.value })}
                                     />
                                 </div>
@@ -659,7 +687,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <input
                                         type="number"
                                         className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                                        value={currentItem.discount}
+                                        value={currentItem.discount ?? ''}
                                         onChange={(e) => setCurrentItem({ ...currentItem, discount: e.target.value })}
                                         placeholder="0.00"
                                     />

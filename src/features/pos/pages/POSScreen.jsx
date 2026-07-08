@@ -111,6 +111,17 @@ function POSContent() {
 
     const handleSerialSelect = (serial) => {
         if (pendingSerialIndex === null) return;
+
+        // Prevent duplicate IMEI selection
+        const duplicate = cart.find((item, idx) => 
+            idx !== pendingSerialIndex && 
+            item.isSerialized && 
+            (item.serialId === serial.serialId || item.serialNo === serial.serialNo)
+        );
+        if (duplicate) {
+            addNotification('error', 'Duplicate IMEI', `IMEI: ${serial.serialNo} is already linked to another item in the cart.`);
+            return;
+        }
         
         setCart(prev => {
             const updated = [...prev];
@@ -788,11 +799,24 @@ function POSContent() {
                 isSerialized: rawData.isSerialized || false,
                 serialId: rawData.selectedSerialId || null,
                 serialNo: rawData.serialNo || null,
+                batchId: rawData.selectedBatchId || null,
                 dtvData: rawData.dtvData || null,
                 repairData: rawData.repairData || null
             };
 
-            if (!product.isService) {
+            // Prevent duplicate IMEI scanning in the current transaction
+            if (product.isSerialized && product.serialId) {
+                const duplicate = cart.find(item => 
+                    item.isSerialized && 
+                    (item.serialId === product.serialId || item.serialNo === product.serialNo)
+                );
+                if (duplicate) {
+                    addNotification('error', 'Duplicate IMEI', `IMEI: ${product.serialNo} is already added to the cart.`);
+                    return;
+                }
+            }
+
+            if (!product.isService && !(product.isSerialized && product.serialId)) {
                 if (rawData.availablePrices && rawData.availablePrices.length > 0) {
                     const priceGroupsMap = new Map();
                     for (const batch of rawData.availablePrices) {

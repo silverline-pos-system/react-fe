@@ -672,6 +672,7 @@ export const inventoryService = {
                     batchCode: item.batch_code ?? item.batchCode ?? null,
                     expiryDate: item.expiry_date ?? item.expiryDate ?? null,
                     qtyReceived: item.quantity ?? item.qtyReceived,
+                    qtyDispatched: item.quantity ?? item.qtyReceived ?? item.qtyDispatched,
                     unitPrice: item.unit_price ?? item.unitPrice,
                     sellingPrice: item.selling_price ?? item.sellingPrice ?? null,
                     mrp: item.mrp ?? null,

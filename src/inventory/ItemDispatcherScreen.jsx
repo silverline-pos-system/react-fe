@@ -8,6 +8,7 @@ import { poService } from '../services/poService';
 import { useInventoryNotification } from './context/InventoryNotificationContext';
 import { useEnterKeyNavigation } from '../hooks/useEnterKeyNavigation';
 import Pagination from '../components/Pagination';
+import api from '@/lib/api';
 
 const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) => {
     const { success, error, warning, confirm } = useInventoryNotification();
@@ -456,6 +457,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             nextBatchCode = String(maxCode + 1);
         }
 
+        const tracking = (product?.tracking_type || product?.trackingType || (product?.is_serialized || product?.isSerialized ? 'IMEI' : 'NORMAL')).toUpperCase();
+        const itemType = tracking === 'IMEI' ? 'imei' : (tracking === 'EXPIRY' ? 'expiry' : 'normal');
+
         setCurrentItem((prev) => ({
             ...prev,
             product_id: String(productId),
@@ -466,8 +470,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             batch_code: nextBatchCode,
             quantity: '',
             branch_id: '',
-            item_type: product?.isSerialized ? 'imei' : 'normal',
-            imeis: Array(Math.floor(Number(poItem?.qtyOrdered || 0))).fill('')
+            item_type: itemType,
+            imeis: [],
+            batches: [{ batch_code: nextBatchCode, quantity: '', expiry_date: '' }]
         }));
     };
 
@@ -491,7 +496,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         }));
     };
 
-    const handleAddItem = () => {
+    const handleAddItem = async () => {
         if (!formData.po_id) {
             warning('Select a PO before adding dispatch lines.');
             return;
@@ -538,8 +543,8 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         // IMEI validation
         if (currentItem.item_type === 'imei') {
             const validImeis = (currentItem.imeis || []).filter((x) => String(x || '').trim());
-            if (validImeis.length < Math.floor(qty)) {
-                warning(`Enter ${Math.floor(qty)} IMEI/Serial values for serialized dispatch.`);
+            if (validImeis.length !== Math.floor(qty)) {
+                warning(`Number of IMEIs (${validImeis.length}) must exactly equal Dispatch Quantity (${Math.floor(qty)}).`);
                 return;
             }
 
@@ -552,6 +557,12 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     return;
                 }
                 imeiSet.add(trimmed);
+
+                const last9 = trimmed.slice(-9);
+                if (!/^\d{9}$/.test(last9) || trimmed.length < 9) {
+                    warning(`IMEI "${trimmed}" must be numeric and end with at least 9 digits.`);
+                    return;
+                }
             }
 
             // Check against other dispatch lines already added
@@ -564,15 +575,62 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     return;
                 }
             }
+
+            // Database/inventory lookup check
+            try {
+                await Promise.all(validImeis.map(async (imei) => {
+                    try {
+                        const checkRes = await api.get(`/inventory/serials/serial/${imei.trim()}`, { silent: true });
+                        if (checkRes.data?.data || checkRes.data) {
+                            throw new Error(`IMEI "${imei.trim()}" already exists in stock/inventory!`);
+                        }
+                    } catch (err) {
+                        if (err.response?.status !== 404) {
+                            throw err;
+                        }
+                    }
+                }));
+            } catch (err) {
+                warning(err.message || 'Validation failed for IMEIs against database.');
+                return;
+            }
         }
 
-        // Expiry validation
-        if (currentItem.item_type === 'expiry' && currentItem.expiry_date) {
-            const expDate = new Date(currentItem.expiry_date);
+        if (currentItem.item_type === 'expiry') {
+            if (!currentItem.batches || currentItem.batches.length === 0) {
+                warning('Add at least one batch for Expiry product.');
+                return;
+            }
+
+            let totalBatchQty = 0;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (expDate < today) {
-                warning('Cannot dispatch with an expired batch. Expiry date is in the past.');
+
+            for (let i = 0; i < currentItem.batches.length; i++) {
+                const b = currentItem.batches[i];
+                if (!b.batch_code || !String(b.batch_code).trim()) {
+                    warning(`Batch #${i + 1}: Batch number/code is required.`);
+                    return;
+                }
+                const bQty = Number(b.quantity);
+                if (!Number.isFinite(bQty) || bQty <= 0) {
+                    warning(`Batch #${i + 1}: Quantity must be greater than zero.`);
+                    return;
+                }
+                if (!b.expiry_date) {
+                    warning(`Batch #${i + 1}: Expiry date is required.`);
+                    return;
+                }
+                const expDate = new Date(b.expiry_date);
+                if (expDate < today) {
+                    warning(`Batch #${i + 1}: Expiry date cannot be in the past.`);
+                    return;
+                }
+                totalBatchQty += bQty;
+            }
+
+            if (totalBatchQty !== qty) {
+                warning(`Total batch quantities (${totalBatchQty}) must exactly equal the entered Dispatch Quantity (${qty}).`);
                 return;
             }
         }
@@ -580,18 +638,44 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         const product = items.find((x) => Number(x.product_id) === Number(currentItem.product_id));
         const branch = branches.find((x) => String(x.branch_id) === String(currentItem.branch_id));
 
-        const normalizedQty = Math.floor(qty);
-        const line = {
-            ...currentItem,
-            quantity: normalizedQty,
-            unit_price: unitPrice,
-            selling_price: Number(currentItem.selling_price || 0),
-            product_name: product?.name || 'Unknown Product',
-            branch_name: branch?.name || `Branch ${currentItem.branch_id}`,
-            subtotal: normalizedQty * unitPrice
-        };
+        if (currentItem.item_type === 'expiry') {
+            const newLines = currentItem.batches.map(b => {
+                const bQty = Number(b.quantity);
+                return {
+                    ...currentItem,
+                    quantity: bQty,
+                    unit_price: unitPrice,
+                    selling_price: Number(currentItem.selling_price || 0),
+                    product_name: product?.name || 'Unknown Product',
+                    branch_name: branch?.name || `Branch ${currentItem.branch_id}`,
+                    sku: poItem?.sku ?? product?.sku ?? '',
+                    ordered_qty: Number(poItem?.qtyOrdered ?? poItem?.qty_ordered ?? 0),
+                    discount: Number(poItem?.discount ?? 0),
+                    batch_code: b.batch_code,
+                    expiry_date: b.expiry_date,
+                    subtotal: bQty * unitPrice,
+                    batches: undefined
+                };
+            });
 
-        setFormData((prev) => ({ ...prev, items: [...prev.items, line] }));
+            setFormData((prev) => ({ ...prev, items: [...prev.items, ...newLines] }));
+        } else {
+            const normalizedQty = Math.floor(qty);
+            const line = {
+                ...currentItem,
+                quantity: normalizedQty,
+                unit_price: unitPrice,
+                selling_price: Number(currentItem.selling_price || 0),
+                product_name: product?.name || 'Unknown Product',
+                branch_name: branch?.name || `Branch ${currentItem.branch_id}`,
+                sku: poItem?.sku ?? product?.sku ?? '',
+                ordered_qty: Number(poItem?.qtyOrdered ?? poItem?.qty_ordered ?? 0),
+                discount: Number(poItem?.discount ?? 0),
+                subtotal: normalizedQty * unitPrice
+            };
+            setFormData((prev) => ({ ...prev, items: [...prev.items, line] }));
+        }
+
         setCurrentItem({
             product_id: '',
             branch_id: '',
@@ -603,7 +687,8 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             batch_code: '',
             expiry_date: '',
             item_type: 'normal',
-            imeis: []
+            imeis: [],
+            batches: []
         });
 
         success('Dispatch line added.');
@@ -847,10 +932,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Step 2: Cost Price</label>
                                         <input
                                             type="number"
-                                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-semibold"
+                                            className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
                                             value={currentItem.unit_price}
-                                            onChange={(e) => setCurrentItem((prev) => ({ ...prev, unit_price: e.target.value }))}
-                                            disabled={!currentItem.product_id}
+                                            disabled
                                         />
                                     </div>
 
@@ -858,12 +942,12 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Step 3: Quantity</label>
                                         <input
                                             type="number"
-                                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-semibold"
+                                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-semibold font-mono"
                                             value={currentItem.quantity}
                                             onChange={(e) => {
                                                 const rawQty = Number(e.target.value || 0);
                                                 const qty = Math.max(0, Math.floor(rawQty));
-                                                setCurrentItem((prev) => ({ ...prev, quantity: qty, imeis: Array(qty).fill('') }));
+                                                setCurrentItem((prev) => ({ ...prev, quantity: qty, imeis: [] }));
                                             }}
                                             disabled={!currentItem.product_id || Number(currentItem.unit_price || 0) <= 0}
                                         />
@@ -891,60 +975,61 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Selling Price</label>
                                         <input
                                             type="number"
-                                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-semibold"
+                                            className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
                                             value={currentItem.selling_price}
-                                            onChange={(e) => setCurrentItem((prev) => ({ ...prev, selling_price: e.target.value }))}
-                                            disabled={!currentItem.product_id}
+                                            disabled
                                         />
                                     </div>
+
+                                    {currentItem.product_id && (() => {
+                                        const poItem = selectedPOItems.find(x => String(x.productId || x.product_id) === String(currentItem.product_id));
+                                        return (
+                                            <>
+                                                <div className="md:col-span-3">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">SKU</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
+                                                        value={poItem?.sku || ''}
+                                                        disabled
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-3">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Ordered Qty</label>
+                                                    <input
+                                                        type="number"
+                                                        className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
+                                                        value={poItem?.qtyOrdered ?? poItem?.qty_ordered ?? 0}
+                                                        disabled
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-3">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">PO Discount</label>
+                                                    <input
+                                                        type="number"
+                                                        className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
+                                                        value={poItem?.discount || 0}
+                                                        disabled
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-3">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Total Price</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-600 cursor-not-allowed font-mono"
+                                                        value={`LKR ${(Number(currentItem.quantity || 0) * Number(currentItem.unit_price || 0)).toFixed(2)}`}
+                                                        disabled
+                                                    />
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="md:col-span-3">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Type</label>
-                                        <div className="flex bg-white rounded-lg p-1 border border-slate-300 shadow-sm">
-                                            <button
-                                                type="button"
-                                                onClick={() => setCurrentItem((prev) => ({ ...prev, item_type: 'normal' }))}
-                                                className={`flex-1 py-1.5 px-3 text-[10px] font-bold rounded-md transition-all ${currentItem.item_type === 'normal' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
-                                            >
-                                                Normal
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCurrentItem((prev) => ({ ...prev, item_type: 'imei' }))}
-                                                className={`flex-1 py-1.5 px-3 text-[10px] font-bold rounded-md transition-all ${currentItem.item_type === 'imei' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
-                                            >
-                                                IMEI
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCurrentItem((prev) => ({ ...prev, item_type: 'expiry' }))}
-                                                className={`flex-1 py-1.5 px-3 text-[10px] font-bold rounded-md transition-all ${currentItem.item_type === 'expiry' ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
-                                            >
-                                                Expiry
-                                            </button>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Tracking Type</label>
+                                        <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 font-bold text-xs text-slate-600 uppercase tracking-wide">
+                                            {String(currentItem.item_type || 'NORMAL').toUpperCase()}
                                         </div>
-                                    </div>
-
-                                    {currentItem.item_type === 'expiry' && (
-                                        <div className="md:col-span-2">
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Expiry Date</label>
-                                            <input
-                                                type="date"
-                                                className="w-full bg-amber-50 border border-amber-200 rounded-lg p-2.5 font-semibold"
-                                                value={currentItem.expiry_date}
-                                                onChange={(e) => setCurrentItem((prev) => ({ ...prev, expiry_date: e.target.value }))}
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Batch</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-semibold"
-                                            value={currentItem.batch_code}
-                                            onChange={(e) => setCurrentItem((prev) => ({ ...prev, batch_code: e.target.value }))}
-                                        />
                                     </div>
 
                                     <div className="md:col-span-3">
@@ -960,25 +1045,236 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
 
                                 {currentItem.item_type === 'imei' && Number(currentItem.quantity) > 0 && (
                                     <div className="mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
-                                        <label className="block text-[11px] font-black text-indigo-700 uppercase tracking-widest mb-3">
-                                            Enter IMEI / Serial Numbers ({Number(currentItem.quantity)} Units)
-                                        </label>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                            {Array.from({ length: Number(currentItem.quantity) }).map((_, i) => (
-                                                <input
-                                                    key={i}
-                                                    type="text"
-                                                    placeholder={`Unit #${i + 1}`}
-                                                    className="w-full p-2 text-xs border border-indigo-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-400 outline-none font-mono"
-                                                    value={currentItem.imeis?.[i] || ''}
-                                                    onChange={(e) => {
-                                                        const nextImeis = [...(currentItem.imeis || [])];
-                                                        nextImeis[i] = e.target.value;
-                                                        setCurrentItem((prev) => ({ ...prev, imeis: nextImeis }));
-                                                    }}
-                                                />
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="block text-[11px] font-black text-indigo-700 uppercase tracking-widest">
+                                                IMEIs ({(currentItem.imeis || []).filter(x => String(x || '').trim()).length} / {Number(currentItem.quantity || 0)} entered)
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCurrentItem(prev => ({
+                                                        ...prev,
+                                                        imeis: [...(prev.imeis || []), '']
+                                                    }));
+                                                }}
+                                                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg shadow-sm"
+                                            >
+                                                + Add IMEI
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {(currentItem.imeis || []).map((imeiVal, i) => (
+                                                <div key={i} className="flex items-center gap-1.5 bg-white p-1.5 rounded-lg border border-indigo-100 shadow-sm">
+                                                    <span className="text-[10px] font-bold text-slate-400 w-12 font-mono">#{i + 1}</span>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter IMEI (ends with 9 digits)"
+                                                        className="flex-1 p-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-indigo-400 outline-none font-mono"
+                                                        value={imeiVal || ''}
+                                                        onChange={(e) => {
+                                                            const nextImeis = [...(currentItem.imeis || [])];
+                                                            nextImeis[i] = e.target.value;
+                                                            setCurrentItem((prev) => ({ ...prev, imeis: nextImeis }));
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const nextImeis = (currentItem.imeis || []).filter((_, idx) => idx !== i);
+                                                            setCurrentItem(prev => ({ ...prev, imeis: nextImeis }));
+                                                        }}
+                                                        className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             ))}
                                         </div>
+
+                                        {/* Inline Validation Warnings */}
+                                        {(() => {
+                                            const warnings = [];
+                                            const qty = Number(currentItem.quantity || 0);
+                                            const validImeis = (currentItem.imeis || []).filter(x => String(x || '').trim());
+                                            const entered = validImeis.length;
+
+                                            if (entered !== qty) {
+                                                warnings.push(`Number of IMEIs (${entered}) must exactly equal Dispatch Quantity (${qty}).`);
+                                            }
+                                            
+                                            // Check duplicates within this list
+                                            const seen = new Set();
+                                            let hasDup = false;
+                                            for (const val of validImeis) {
+                                                const t = val.trim();
+                                                if (seen.has(t)) {
+                                                    hasDup = true;
+                                                }
+                                                seen.add(t);
+                                            }
+                                            if (hasDup) {
+                                                warnings.push("Duplicate IMEIs within this dispatch line are not allowed.");
+                                            }
+
+                                            // Check format (last 9 digits must be numeric digits, length >= 9)
+                                            let hasInvalidFormat = false;
+                                            for (const val of validImeis) {
+                                                const t = val.trim();
+                                                const last9 = t.slice(-9);
+                                                if (!/^\d{9}$/.test(last9) || t.length < 9) {
+                                                    hasInvalidFormat = true;
+                                                }
+                                            }
+                                            if (hasInvalidFormat) {
+                                                warnings.push("IMEIs must be numeric and end with at least 9 digits.");
+                                            }
+
+                                            if (warnings.length > 0) {
+                                                return (
+                                                    <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded-lg">
+                                                        {warnings.map((w, idx) => (
+                                                            <div key={idx} className="text-[10px] text-rose-600 font-bold">• {w}</div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
+                                )}
+
+                                {currentItem.item_type === 'expiry' && Number(currentItem.quantity) > 0 && (
+                                    <div className="mt-4 p-4 bg-amber-50/50 border border-amber-100 rounded-xl">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="block text-[11px] font-black text-amber-700 uppercase tracking-widest">
+                                                Batches (Total Qty: {Number(currentItem.quantity || 0)})
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const nextBatchNo = String(Number(currentItem.batch_code || 1) + (currentItem.batches || []).length + 1);
+                                                    setCurrentItem(prev => ({
+                                                        ...prev,
+                                                        batches: [...(prev.batches || []), { batch_code: nextBatchNo, quantity: '', expiry_date: '' }]
+                                                    }));
+                                                }}
+                                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold rounded-lg shadow-sm"
+                                            >
+                                                + Add Batch
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {(currentItem.batches || []).map((batchVal, i) => (
+                                                <div key={i} className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-lg border border-amber-100 shadow-sm">
+                                                    <div className="col-span-1 text-[10px] font-bold text-slate-400 font-mono">#{i + 1}</div>
+                                                    
+                                                    <div className="col-span-4">
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Batch Code *</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Batch No"
+                                                            className="w-full p-1 text-xs border border-slate-200 rounded font-semibold"
+                                                            value={batchVal.batch_code || ''}
+                                                            onChange={(e) => {
+                                                                const nextBatches = [...(currentItem.batches || [])];
+                                                                nextBatches[i].batch_code = e.target.value;
+                                                                setCurrentItem(prev => ({ ...prev, batches: nextBatches }));
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="col-span-3">
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Quantity *</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Qty"
+                                                            className="w-full p-1 text-xs border border-slate-200 rounded font-semibold"
+                                                            value={batchVal.quantity || ''}
+                                                            onChange={(e) => {
+                                                                const nextBatches = [...(currentItem.batches || [])];
+                                                                nextBatches[i].quantity = e.target.value;
+                                                                setCurrentItem(prev => ({ ...prev, batches: nextBatches }));
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="col-span-3">
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Expiry Date *</label>
+                                                        <input
+                                                            type="date"
+                                                            className="w-full p-1 text-xs border border-slate-200 rounded font-semibold bg-amber-50/50"
+                                                            value={batchVal.expiry_date || ''}
+                                                            onChange={(e) => {
+                                                                const nextBatches = [...(currentItem.batches || [])];
+                                                                nextBatches[i].expiry_date = e.target.value;
+                                                                setCurrentItem(prev => ({ ...prev, batches: nextBatches }));
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="col-span-1 text-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const nextBatches = (currentItem.batches || []).filter((_, idx) => idx !== i);
+                                                                setCurrentItem(prev => ({ ...prev, batches: nextBatches }));
+                                                            }}
+                                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Inline Batch Validation Warning */}
+                                        {(() => {
+                                            const warnings = [];
+                                            const enteredQty = (currentItem.batches || []).reduce((sum, b) => sum + Number(b.quantity || 0), 0);
+                                            const qty = Number(currentItem.quantity || 0);
+
+                                            if (enteredQty !== qty) {
+                                                warnings.push(`Sum of batch quantities (${enteredQty}) must exactly equal entered Dispatch Quantity (${qty}).`);
+                                            }
+
+                                            let missingFields = false;
+                                            let pastExpiry = false;
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+
+                                            (currentItem.batches || []).forEach(b => {
+                                                if (!b.batch_code || !String(b.batch_code).trim() || !b.quantity || !b.expiry_date) {
+                                                    missingFields = true;
+                                                }
+                                                if (b.expiry_date) {
+                                                    const expDate = new Date(b.expiry_date);
+                                                    if (expDate < today) {
+                                                        pastExpiry = true;
+                                                    }
+                                                }
+                                            });
+
+                                            if (missingFields) {
+                                                warnings.push("Batch Code, Quantity, and Expiry Date are required for all batches.");
+                                            }
+                                            if (pastExpiry) {
+                                                warnings.push("Expiry Date cannot be in the past.");
+                                            }
+
+                                            if (warnings.length > 0) {
+                                                return (
+                                                    <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded-lg">
+                                                        {warnings.map((w, idx) => (
+                                                            <div key={idx} className="text-[10px] text-rose-600 font-bold">• {w}</div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 )}
                             </div>
@@ -990,12 +1286,14 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                     <tr>
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">To Branch</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">Product</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">SKU</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Ordered Qty</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Dispatch Qty</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Unit Price</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Discount</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Total Price</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">Batch/Expiry</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">Type/IMEI</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-slate-500">Qty</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-slate-500">Unit Cost</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-slate-500">Selling</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-slate-500">Total</th>
                                         <th className="px-4 py-3 text-center text-[10px] font-bold uppercase text-slate-500">Action</th>
                                     </tr>
                                 </thead>
@@ -1004,6 +1302,12 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                         <tr key={`${line.product_id}-${line.branch_id}-${idx}`} className="hover:bg-slate-50">
                                             <td className="px-4 py-3 font-semibold text-indigo-700">{line.branch_name}</td>
                                             <td className="px-4 py-3 font-semibold text-slate-800">{line.product_name}</td>
+                                            <td className="px-4 py-3 font-mono text-xs text-slate-600">{line.sku || '-'}</td>
+                                            <td className="px-4 py-3 text-right font-mono text-slate-600">{line.ordered_qty || 0}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-indigo-700 font-mono">{line.quantity}</td>
+                                            <td className="px-4 py-3 text-right font-mono text-slate-600">{(line.unit_price || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-right font-mono text-slate-600">{(line.discount || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-slate-900 font-mono">LKR {(line.subtotal || 0).toFixed(2)}</td>
                                             <td className="px-4 py-3 text-xs text-slate-600">{line.batch_code || '-'} {line.expiry_date ? `| EXP: ${line.expiry_date}` : ''}</td>
                                             <td className="px-4 py-3 text-xs text-slate-600">
                                                 <div className="font-semibold text-slate-700 uppercase">{line.item_type || 'normal'}</div>
@@ -1011,10 +1315,6 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                                     <div className="mt-1 text-[10px] text-indigo-700">{line.imeis.filter((x) => String(x || '').trim()).slice(0, 2).join(', ')}{line.imeis.filter((x) => String(x || '').trim()).length > 2 ? ' ...' : ''}</div>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-bold text-indigo-700">{line.quantity}</td>
-                                            <td className="px-4 py-3 text-right text-slate-600">{Number(line.unit_price).toFixed(2)}</td>
-                                            <td className="px-4 py-3 text-right text-slate-600">{Number(line.selling_price || 0).toFixed(2)}</td>
-                                            <td className="px-4 py-3 text-right font-bold text-slate-900">LKR {Number(line.subtotal).toFixed(2)}</td>
                                             <td className="px-4 py-3 text-center">
                                                 <button onClick={() => handleRemoveItem(idx)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                                                     <Trash2 size={16} />
@@ -1024,7 +1324,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                     ))}
                                     {formData.items.length === 0 && (
                                         <tr>
-                                            <td colSpan="9" className="px-4 py-8 text-center text-gray-500">No dispatch lines added yet</td>
+                                            <td colSpan="11" className="px-4 py-8 text-center text-gray-500">No dispatch lines added yet</td>
                                         </tr>
                                     )}
                                 </tbody>
