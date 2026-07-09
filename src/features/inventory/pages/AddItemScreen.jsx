@@ -15,6 +15,7 @@ const AddItemScreen = ({ onClose, setActiveScreen, categories, subCategories = [
         brand_id: '',
         unit: '',
         reorder_level: '10',
+        tracking_type: '',
         is_active: true
     });
 
@@ -30,6 +31,7 @@ const AddItemScreen = ({ onClose, setActiveScreen, categories, subCategories = [
                 brand_id: itemToEdit.brand_id || '',
                 unit: itemToEdit.unit || '',
                 reorder_level: itemToEdit.reorder_level || '10',
+                tracking_type: itemToEdit.tracking_type || itemToEdit.trackingType || (itemToEdit.is_serialized || itemToEdit.isSerialized ? 'IMEI' : 'NORMAL'),
                 is_active: itemToEdit.is_active !== undefined ? itemToEdit.is_active : true
             });
         } else {
@@ -81,6 +83,10 @@ const AddItemScreen = ({ onClose, setActiveScreen, categories, subCategories = [
         }
         if (!formData.category_id) {
             warning('Category is required');
+            return false;
+        }
+        if (!formData.tracking_type) {
+            warning('Inventory Tracking Type is required');
             return false;
         }
         return true;
@@ -262,6 +268,22 @@ const AddItemScreen = ({ onClose, setActiveScreen, categories, subCategories = [
                             <option value="LITER">Liter</option>
                             <option value="KG">Kilogram</option>
                             <option value="GRAM">Gram</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Inventory Tracking Type *</label>
+                        <select
+                            name="tracking_type"
+                            value={formData.tracking_type}
+                            onChange={handleChange}
+                            onKeyDown={handleKeyDown}
+                            disabled={!!itemToEdit}
+                            className="w-full text-base"
+                        >
+                            <option value="">Select tracking type</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="IMEI">IMEI (Serialized)</option>
+                            <option value="EXPIRY">Expiry (Batched)</option>
                         </select>
                     </div>
                     <div>

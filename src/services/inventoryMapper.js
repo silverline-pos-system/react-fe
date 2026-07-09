@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Inventory Mapper - Maps between backend camelCase and frontend snake_case
  * Backend uses: productId, categoryId, brandId, isActive, createdAt, etc.
  * Frontend uses: product_id, category_id, brand_id, is_active, created_at, etc.
@@ -100,6 +100,10 @@ export const mapProductToBackend = (frontendProduct) => {
  * Map array of backend products to frontend format
  */
 export const mapProductsFromBackend = (backendProducts) => {
+    if (!backendProducts) return [];
+    if (backendProducts.content && Array.isArray(backendProducts.content)) {
+        return backendProducts.content.map(mapProductFromBackend);
+    }
     if (!Array.isArray(backendProducts)) return [];
     return backendProducts.map(mapProductFromBackend);
 };

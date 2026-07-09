@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, AlertTriangle, Smartphone, Tag, MapPin, History, FileText, ArrowLeft } from 'lucide-react';
 import inventoryService from '@/features/inventory/services/inventoryService';
+import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
 
 const ITEM_DETAIL_TABS = ['summary', 'prices-batches', 'sales'];
 
@@ -17,8 +18,10 @@ const ItemDetailScreen = ({
     brands,
     subCategories,
     suppliers = [],
-    branches = []
+    branches = [],
+    refreshItems
 }) => {
+    const { success, error, confirm } = useInventoryNotification();
     const normalizeId = (value) => (value == null ? '' : String(value));
     const getProductId = (record) => record?.product_id ?? record?.productId ?? record?.id;
     const getBatchQty = (batch) => {
@@ -358,7 +361,43 @@ const ItemDetailScreen = ({
                             <div><label className="text-sm text-gray-600">Selling Price:</label><p className="text-lg font-bold">LKR {formatCurrency(item.selling_price)}</p></div>
                             <div><label className="text-sm text-gray-600">MRP:</label><p className="text-lg font-bold">LKR {formatCurrency(item.mrp)}</p></div>
                             <div><label className="text-sm text-gray-600">Reorder Level:</label><p className="text-lg font-bold">{toNumber(item.reorder_level)} units</p></div>
-                            <div><label className="text-sm text-gray-600">Status:</label><p><span className={`px-2 py-1 text-xs font-medium rounded-full ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{item.is_active ? 'Active' : 'Inactive'}</span></p></div>
+                            <div>
+                                <label className="text-sm text-gray-600 block mb-1">Status:</label>
+                                <select
+                                    value={item.is_active ? 'ACTIVE' : 'INACTIVE'}
+                                    onChange={async (e) => {
+                                        const newStatus = e.target.value === 'ACTIVE';
+                                        const isConfirmed = await confirm(
+                                            'Change Status',
+                                            `Are you sure you want to change the status of this product to ${newStatus ? 'Active' : 'Inactive'}?`,
+                                            'warning'
+                                        );
+                                        if (!isConfirmed) return;
+                                        try {
+                                            await inventoryService.updateProduct(itemId, {
+                                                ...item,
+                                                isActive: newStatus,
+                                                is_active: newStatus
+                                            });
+                                            success(`Product status updated to ${newStatus ? 'Active' : 'Inactive'}`);
+                                            if (refreshItems) {
+                                                await refreshItems();
+                                            }
+                                        } catch (err) {
+                                            console.error('Failed to update status:', err);
+                                            error('Failed to update product status');
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-colors outline-none focus:ring-1 focus:ring-blue-500 ${
+                                        item.is_active 
+                                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                            : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                    }`}
+                                >
+                                    <option value="ACTIVE" className="bg-white text-green-700 font-bold">Active</option>
+                                    <option value="INACTIVE" className="bg-white text-red-700 font-bold">Inactive</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
