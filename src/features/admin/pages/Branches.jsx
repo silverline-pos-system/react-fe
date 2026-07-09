@@ -12,18 +12,6 @@ import {
 import AdminPasswordModal from "../components/AdminPasswordModal";
 import useEscapeClose from "@/hooks/useEscapeClose";
 
-function generateNextBranchCode(branches) {
-  const maxCodeNumber = (branches || []).reduce((max, branch) => {
-    const rawCode = branch?.code || "";
-    const match = String(rawCode).match(/(\d+)$/);
-    if (!match) return max;
-    const num = Number.parseInt(match[1], 10);
-    return Number.isNaN(num) ? max : Math.max(max, num);
-  }, 0);
-
-  return `BR${String(maxCodeNumber + 1).padStart(3, "0")}`;
-}
-
 export default function Branches() {
   const [q, setQ] = useState("");
   const [branches, setBranches] = useState([]);
@@ -72,7 +60,10 @@ export default function Branches() {
         setBranches(branchesData || []);
         setForm((prev) => ({
           ...prev,
-          code: generateNextBranchCode(branchesData || [])
+          code: "",
+          branchName: "",
+          address: "",
+          status: "INACTIVE"
         }));
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -102,7 +93,7 @@ export default function Branches() {
 
   const resetForm = () => {
     setForm({
-      code: generateNextBranchCode(branches),
+      code: "",
       branchName: "",
       address: "",
       status: "INACTIVE"
@@ -119,7 +110,6 @@ export default function Branches() {
       setSubmitting(true);
       setFormError(null);
       const payload = {
-        code: form.code,
         name: form.branchName,
         address: form.address,
         isActive: form.status === "ACTIVE"
@@ -127,13 +117,7 @@ export default function Branches() {
       await createBranch(payload);
       const data = await getAllBranches();
       setBranches(data || []);
-      setForm({
-        code: generateNextBranchCode(data || []),
-        branchName: "",
-        address: "",
-        status: "INACTIVE"
-      });
-      setEditBranch(null);
+      resetForm();
     } catch (err) {
       console.error("Error creating branch:", err);
       const msg = err.response?.data?.message || "";
@@ -288,16 +272,18 @@ export default function Branches() {
           )}
 
           <form onSubmit={editBranch ? handleSaveEdit : onAdd} className="space-y-3">
-            <div>
-              <label className="text-sm font-bold">Branch Code (ID)</label>
-              <input
-                className="mt-1 w-full px-3 py-2 rounded-xl border border-brand-border outline-none focus:ring-2 focus:ring-brand-secondary disabled:bg-gray-100 disabled:text-gray-500"
-                placeholder="Auto generated"
-                value={form.code}
-                readOnly
-                disabled
-              />
-            </div>
+            {editBranch && (
+              <div>
+                <label className="text-sm font-bold">Branch Code (ID)</label>
+                <input
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-brand-border outline-none focus:ring-2 focus:ring-brand-secondary disabled:bg-gray-100 disabled:text-gray-500"
+                  placeholder="Auto generated"
+                  value={form.code}
+                  readOnly
+                  disabled
+                />
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-bold">Branch Name</label>
