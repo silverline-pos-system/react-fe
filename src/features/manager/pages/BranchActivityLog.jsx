@@ -282,11 +282,8 @@ export default function BranchActivityLog() {
 
     const filteredActivities = useMemo(() => {
         const q = searchTerm.toLowerCase();
-        const allowedTypes = ['SHIFT_OPEN', 'SHIFT_CLOSE', 'LOGIN', 'LOGOUT', 'USER_CREATE'];
 
         return activities.filter(a => {
-            if (!allowedTypes.includes(a.actionType)) return false;
-
             const matchesSearch = !q ||
                 a.username?.toLowerCase().includes(q) ||
                 a.actionType?.toLowerCase().includes(q) ||
@@ -324,13 +321,13 @@ export default function BranchActivityLog() {
     const typeOptions = useMemo(() => {
         const counts = {};
         activities.forEach(a => {
-            if (['SHIFT_OPEN', 'SHIFT_CLOSE', 'LOGIN'].includes(a.actionType)) {
+            if (['SHIFT_OPEN', 'SHIFT_CLOSE', 'LOGIN', 'LOGOUT'].includes(a.actionType)) {
                 counts[a.actionType] = (counts[a.actionType] || 0) + 1;
             }
         });
 
         return [
-            { value: 'ALL', label: 'All Activities', count: (counts.SHIFT_OPEN || 0) + (counts.SHIFT_CLOSE || 0) + (counts.LOGIN || 0) + (counts.LOGOUT || 0) },
+            { value: 'ALL', label: 'All Activities', count: activities.length },
             { value: 'SHIFT_OPEN', label: 'Shift Open', count: counts.SHIFT_OPEN || 0 },
             { value: 'SHIFT_CLOSE', label: 'Shift Close', count: counts.SHIFT_CLOSE || 0 },
             { value: 'LOGIN', label: 'Logins', count: counts.LOGIN || 0 },

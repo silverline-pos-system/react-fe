@@ -25,6 +25,10 @@ export default defineConfig({
       }
     }
   },
+  preview: {
+    port: 3000,          // you can change this
+    strictPort: true,
+  },
   build: {
     rollupOptions: {
       output: {

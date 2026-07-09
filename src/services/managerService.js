@@ -399,7 +399,7 @@ export const getApprovalHistoryPdf = async () => {
     const response = await api.get(`${MANAGER_API_BASE}/reports/approvals/pdf`, {
       responseType: 'blob', // Important for binary data
     });
-    return response.data.data;
+    return response.data;
   } catch (error) {
     console.error("Error downloading PDF:", error);
     throw error;
@@ -477,14 +477,24 @@ export const getBranchActivityLog = async (branchId = null, filters = {}) => {
       params.append('end', end);
 
       const response = await api.get(`${MANAGER_API_BASE}/activity/filter?${params}`);
-      return response.data.data || response.data;
+      const resData = response.data;
+      if (resData && resData.data) {
+        if (Array.isArray(resData.data)) return resData.data;
+        if (resData.data.data && Array.isArray(resData.data.data)) return resData.data.data;
+      }
+      return [];
     } else {
       if (filters.limit) params.append('limit', filters.limit);
       if (filters.type) params.append('type', filters.type);
       if (filters.userId) params.append('userId', filters.userId);
 
       const response = await api.get(`${MANAGER_API_BASE}/activity/recent?${params}`);
-      return response.data.data || response.data;
+      const resData = response.data;
+      if (resData && resData.data) {
+        if (Array.isArray(resData.data)) return resData.data;
+        if (resData.data.data && Array.isArray(resData.data.data)) return resData.data.data;
+      }
+      return [];
     }
   } catch (error) {
     console.error("Error fetching activity log:", error);

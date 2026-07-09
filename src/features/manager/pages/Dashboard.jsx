@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import StatCard from "../components/StatCard";
 import TopSellingTable from "../components/TopSellingTable";
 import StaffWidget from "../components/StaffWidget";
-import PendingDispatches from "../components/PendingDispatches";
 import StockAlertsWidget from "../components/StockAlertsWidget";
 import ExpiryWidget from "../components/ExpiryWidget";
 
@@ -127,7 +126,6 @@ export default function Dashboard() {
         {/* Right: Staff & Approvals */}
         <div className="xl:col-span-1 space-y-6">
           <StaffWidget />
-          <PendingDispatches />
         </div>
       </div>
     </div>

@@ -7,7 +7,6 @@ import {
   updateBranch,
   deleteBranchWithPassword,
   toggleBranchStatus,
-  getUsersByBranch,
 } from "../services/adminApi";
 import AdminPasswordModal from "../components/AdminPasswordModal";
 import useEscapeClose from "@/hooks/useEscapeClose";
@@ -17,7 +16,6 @@ export default function Branches() {
   const [branches, setBranches] = useState([]);
   const [form, setForm] = useState({ code: "", branchName: "", address: "", status: "INACTIVE" });
   const [selectedBranch, setSelectedBranch] = useState(null);
-  const [branchUsers, setBranchUsers] = useState([]);
   const [editBranch, setEditBranch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +29,6 @@ export default function Branches() {
   useEscapeClose(() => {
     if (selectedBranch) {
       setSelectedBranch(null);
-      setBranchUsers([]);
     }
   }, !!selectedBranch);
 
@@ -44,7 +41,6 @@ export default function Branches() {
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       e.preventDefault();
       setSelectedBranch(null);
-      setBranchUsers([]);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -204,16 +200,8 @@ export default function Branches() {
     }
   }
 
-  async function handleViewBranch(branch) {
+  function handleViewBranch(branch) {
     setSelectedBranch(branch);
-    try {
-      const branchId = getBranchId(branch);
-      const users = await getUsersByBranch(branchId);
-      setBranchUsers(users || []);
-    } catch (err) {
-      console.error("Error fetching branch users:", err);
-      setBranchUsers([]);
-    }
   }
 
   const getBranchId = (b) => b.id || b.branchId || b.branch_id;
@@ -406,7 +394,6 @@ export default function Branches() {
               <button
                 onClick={() => {
                   setSelectedBranch(null);
-                  setBranchUsers([]);
                 }}
                 className="text-slate-500 hover:text-slate-700 transition"
               >
@@ -427,28 +414,8 @@ export default function Branches() {
               </div>
 
               <div>
-                <div className="text-sm font-bold text-slate-600 mb-2">Users ({branchUsers.length})</div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {branchUsers.length > 0 ? (
-                    branchUsers.map(user => {
-                      const userId = user.userId || user.user_id || user.id;
-                      const userName = user.fullName || user.full_name;
-                      return (
-                        <div key={userId} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                          <div className="font-bold text-sm">{userName}</div>
-                          <div className="text-xs text-slate-600">{user.role} • @{user.username}</div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-slate-500 text-sm p-3">No users assigned to this branch</div>
-                  )}
-                </div>
-              </div>
-
-              <div>
                 <div className="text-sm font-bold text-slate-600 mb-2">Status</div>
-                <span className={`px-3 py-1 rounded-full text-sm font-bold text-white ${isActive(selectedBranch) ? "bg-brand-success" : "bg-slate-500"}`}>
+                <span className={`px-3 py-1 rounded-full text-sm font-bold text-white ${isActive(selectedBranch) ? "bg-green-600" : "bg-slate-500"}`}>
                   {getBranchStatus(selectedBranch)}
                 </span>
               </div>
