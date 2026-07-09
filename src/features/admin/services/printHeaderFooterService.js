@@ -2,6 +2,7 @@ import api from "@/services/api";
 
 const STORAGE_KEY = "print_header_footer_settings_v1";
 const PRIMARY_API = "/v1/admin/print-settings/header-footer";
+const POS_PRIMARY_API = "/v1/pos/print-settings/header-footer";
 
 const DEFAULT_GLOBAL_SETTINGS = {
   header: {
@@ -215,7 +216,7 @@ export async function fetchBranchPrintHeaderFooterSettings(branch) {
   }
 
   try {
-    const response = await api.get(PRIMARY_API, {
+    const response = await api.get(POS_PRIMARY_API, {
       params: { branchId },
       validateStatus: (status) => status < 500,
     });
