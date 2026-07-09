@@ -25,7 +25,7 @@ export default function SystemSettings() {
         try {
             setLoading(true);
             const data = await getSystemName();
-            const name = data.systemName || "SmartRetail Pro";
+            const name = data.data?.systemName || "SmartRetail Pro";
             setCurrentName(name);
             setEditName(name);
         } catch {

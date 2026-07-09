@@ -16,7 +16,7 @@ export function SystemNameProvider({ children }) {
     const fetchSystemName = useCallback(async () => {
         try {
             const response = await api.get('/v1/system/name');
-            const name = response.data?.systemName || 'SmartRetail Pro';
+            const name = response.data?.data?.systemName || 'SmartRetail Pro';
             setSystemName(name);
             localStorage.setItem('systemName', name);
         } catch {
