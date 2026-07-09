@@ -24,7 +24,6 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
         poDate: new Date().toISOString().split('T')[0],
         expectedDeliveryDate: '',
         paymentTerms: '',
-        branchId: 1, // Default to Branch 1 (Main)
         items: []
     });
 
@@ -265,7 +264,6 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
 
             const payload = {
                 poNo: formData.poNo || generateReadablePONumber(formData.poDate),
-                branchId: parseInt(formData.branchId),
                 supplierId: parseInt(formData.supplierId),
                 poDate: formData.poDate,
                 expectedDeliveryDate: formData.expectedDeliveryDate,
@@ -301,7 +299,6 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                 poDate: new Date().toISOString().split('T')[0],
                 expectedDeliveryDate: '',
                 paymentTerms: '',
-                branchId: 1,
                 items: []
             });
         } catch (err) {

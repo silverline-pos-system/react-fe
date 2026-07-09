@@ -248,7 +248,7 @@ export const searchBranches = async (query) => {
  */
 export const getTopBranchesBySales = async () => {
   const response = await api.get("/v1/admin/dashboard/top-branches");
-  return response.data;
+  return normalizeListPayload(response.data);
 };
 
 /**

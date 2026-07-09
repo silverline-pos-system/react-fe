@@ -169,8 +169,8 @@ const buildFooterHtml = (footer) => `
 
 // Footer for non-repair receipts: removes thank you and policy, but ensures powered by and extra line always show
 const getNonRepairFooter = (footer) => ({
-  thankYouLine: "",
-  policyLine: "",
+  thankYouLine: footer.thankYouLine || "",
+  policyLine: footer.policyLine || "",
   poweredByLine: footer.poweredByLine || "System By ( ROCS )",
   extraLine: footer.extraLine || "",
 });
@@ -262,8 +262,8 @@ export async function printReceiptPDF({
             <td style="text-align:right;">Unit No &nbsp;: ${escapeHtml(String(unitNo))}</td>
           </tr>
           <tr>
-            <td></td>
-            <td style="text-align:right;">CASHIER &nbsp;: ${escapeHtml(cashierName || "--")}</td>
+            <td>CASHIER &nbsp;: ${escapeHtml(cashierName || "--")}</td>
+            <td style="text-align:right;"></td>
           </tr>
         </table>
 

@@ -36,6 +36,7 @@ export default function UserStatsByRole() {
         }, {});
 
         const sortedRoles = Object.entries(counts)
+          .filter(([role]) => role !== "UNKNOWN")
           .sort((a, b) => b[1] - a[1])
           .map(([role, count]) => ({ role, label: formatRoleLabel(role), count }));
 
