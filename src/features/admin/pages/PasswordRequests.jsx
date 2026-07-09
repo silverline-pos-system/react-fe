@@ -13,7 +13,6 @@ import {
     MessageSquare,
     Shield,
     AlertCircle,
-    ChevronDown,
 } from "lucide-react";
 import {
     getPasswordResetRequests,
@@ -21,6 +20,7 @@ import {
     rejectPasswordReset,
 } from "../services/adminApi";
 import useEscapeClose from "@/hooks/useEscapeClose";
+import Pagination from "@/components/common/Pagination";
 
 // Confirmation Modal
 function ActionModal({ isOpen, onClose, onConfirm, request, action, loading }) {
@@ -146,6 +146,10 @@ export default function PasswordRequests() {
     const [error, setError] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
     // Modal state
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -168,6 +172,10 @@ export default function PasswordRequests() {
     useEffect(() => {
         fetchRequests();
     }, [filter]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, search]);
 
     const openModal = (request, action) => {
         setSelectedRequest(request);
@@ -230,6 +238,13 @@ export default function PasswordRequests() {
         );
     });
 
+    const paginatedRequests = filteredRequests.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+    const totalItems = filteredRequests.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
     const pendingCount = requests.filter((r) => r.status === "PENDING").length;
 
     return (
@@ -280,18 +295,17 @@ export default function PasswordRequests() {
 
                     {/* Status Filter */}
                     <div className="relative">
-                        <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            className="pl-9 pr-8 py-2 rounded-xl border border-brand-border bg-white outline-none focus:ring-2 focus:ring-brand-secondary text-sm font-semibold appearance-none cursor-pointer"
+                            className="pl-9 pr-4 py-2 rounded-xl border border-brand-border bg-white outline-none focus:ring-2 focus:ring-brand-secondary text-sm font-semibold cursor-pointer"
                         >
                             <option value="PENDING">Pending</option>
                             <option value="APPROVED">Approved</option>
                             <option value="REJECTED">Rejected</option>
                             <option value="ALL">All Requests</option>
                         </select>
-                        <ChevronDown className="absolute right-2.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                 </div>
             </div>
@@ -319,81 +333,100 @@ export default function PasswordRequests() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {filteredRequests.map((req) => (
-                        <div
-                            key={req.id}
-                            className="bg-white border border-brand-border rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-200"
-                        >
-                            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                                {/* User Info */}
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0">
-                                        {req.fullName?.charAt(0)?.toUpperCase() || "?"}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="font-bold text-slate-800 truncate">{req.fullName}</h3>
+                <div className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-600 border-b border-brand-border font-bold">
+                                <tr>
+                                    <th className="px-6 py-4">User</th>
+                                    <th className="px-6 py-4">Date Requested</th>
+                                    <th className="px-6 py-4">Reason / Notes</th>
+                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4">Admin Action</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {paginatedRequests.map((req) => (
+                                    <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0">
+                                                    {req.fullName?.charAt(0)?.toUpperCase() || "?"}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-slate-800">{req.fullName}</div>
+                                                    <div className="text-xs text-slate-400">@{req.username} • {req.email}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {new Date(req.createdAt).toLocaleString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={req.requestNotes}>
+                                            {req.requestNotes || <span className="text-slate-300">No notes</span>}
+                                        </td>
+                                        <td className="px-6 py-4">
                                             {getStatusBadge(req.status)}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
-                                            <span className="flex items-center gap-1">
-                                                <User className="w-3 h-3" /> @{req.username}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Mail className="w-3 h-3" /> {req.email}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                {new Date(req.createdAt).toLocaleDateString("en-US", {
-                                                    month: "short",
-                                                    day: "numeric",
-                                                    year: "numeric",
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
-                                            </span>
-                                        </div>
-                                        {req.requestNotes && (
-                                            <div className="mt-2 flex items-start gap-1.5 text-xs text-slate-500 bg-slate-50 rounded-lg p-2">
-                                                <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
-                                                <span>{req.requestNotes}</span>
-                                            </div>
-                                        )}
-                                        {req.adminNotes && (
-                                            <div className="mt-1 flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg p-2">
-                                                <Shield className="w-3 h-3 shrink-0 mt-0.5" />
-                                                <span>Admin: {req.adminNotes}</span>
-                                            </div>
-                                        )}
-                                        {req.reviewedAt && (
-                                            <p className="text-xs text-slate-300 mt-1">
-                                                Reviewed: {new Date(req.reviewedAt).toLocaleString()}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 max-w-xs">
+                                            {req.status === "PENDING" ? (
+                                                <span className="text-slate-300">Awaiting review</span>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {req.adminNotes && (
+                                                        <div className="text-xs text-blue-600 font-medium">
+                                                            {req.adminNotes}
+                                                        </div>
+                                                    )}
+                                                    {req.reviewedAt && (
+                                                        <div className="text-[10px] text-slate-400">
+                                                            {new Date(req.reviewedAt).toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {req.status === "PENDING" ? (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => openModal(req, "approve")}
+                                                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-1"
+                                                    >
+                                                        <CheckCircle className="w-3.5 h-3.5" /> Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openModal(req, "reject")}
+                                                        className="px-3 py-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-1"
+                                                    >
+                                                        <XCircle className="w-3.5 h-3.5" /> Reject
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
-                                {/* Actions */}
-                                {req.status === "PENDING" && (
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <button
-                                            onClick={() => openModal(req, "approve")}
-                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
-                                        >
-                                            <CheckCircle className="w-4 h-4" /> Approve
-                                        </button>
-                                        <button
-                                            onClick={() => openModal(req, "reject")}
-                                            className="px-4 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
-                                        >
-                                            <XCircle className="w-4 h-4" /> Reject
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        setItemsPerPage={setItemsPerPage}
+                    />
                 </div>
             )}
         </div>
