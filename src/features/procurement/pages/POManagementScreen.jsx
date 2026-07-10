@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, FileText, CheckCircle, Clock, Save, Trash2, ArrowLeft, Download, DollarSign } from 'lucide-react';
+import { Plus, Search, FileText, CheckCircle, Clock, Save, Trash2, ArrowLeft, Download, DollarSign, Printer } from 'lucide-react';
 import { poService } from '@/features/procurement/services/poService';
 import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
 import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
@@ -368,6 +368,116 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
         setView('list');
     };
 
+    const handlePrintPO = () => {
+        if (!selectedPO) return;
+        const supplier = suppliers.find(s => s.supplier_id === selectedPO.supplierId);
+        
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Purchase Order - ${selectedPO.poNo}</title>
+                <style>
+                    body { font-family: 'Inter', sans-serif; color: #333; margin: 40px; line-height: 1.5; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+                    .header h1 { font-size: 24px; font-weight: 800; color: #1e3a8a; margin: 0; }
+                    .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
+                    .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    .table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 10px; font-size: 12px; font-weight: bold; text-align: left; }
+                    .table td { border-bottom: 1px solid #e2e8f0; padding: 10px; font-size: 13px; }
+                    .text-right { text-align: right; }
+                    .summary { display: flex; justify-content: flex-end; margin-top: 30px; }
+                    .summary-card { width: 300px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; }
+                    .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+                    .summary-row.total { border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 15px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <h1>PURCHASE ORDER</h1>
+                        <p style="font-size: 14px; color: #64748b; margin: 4px 0 0 0;">ROCS Inventory Management</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="font-size: 16px; font-weight: bold; font-family: monospace; margin: 0;">${selectedPO.poNo}</p>
+                        <p style="font-size: 12px; margin: 4px 0 0 0; color: #64748b;">Date: ${selectedPO.poDate}</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+                    <div>
+                        <h3 style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Supplier</h3>
+                        <p style="font-size: 14px; font-weight: bold; margin: 0;">${supplier?.name || selectedPO.supplierId}</p>
+                        ${supplier?.contact ? `<p style="font-size: 13px; color: #475569; margin: 4px 0 0 0;">Contact: ${supplier.contact}</p>` : ''}
+                        ${supplier?.address ? `<p style="font-size: 13px; color: #475569; margin: 4px 0 0 0;">Address: ${supplier.address}</p>` : ''}
+                    </div>
+                    <div style="text-align: right;">
+                        <h3 style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Details</h3>
+                        <p style="font-size: 13px; margin: 0;">Status: <strong>${selectedPO.status}</strong></p>
+                        <p style="font-size: 13px; margin: 4px 0 0 0;">Expected Delivery: ${selectedPO.expectedDeliveryDate || 'N/A'}</p>
+                        <p style="font-size: 13px; margin: 4px 0 0 0;">Payment Terms: ${selectedPO.paymentTerms || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 45%;">Item / Product</th>
+                            <th style="width: 15%; text-align: right;">Qty</th>
+                            <th style="width: 15%; text-align: right;">Unit Price (LKR)</th>
+                            <th style="width: 20%; text-align: right;">Total (LKR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${selectedPOItems.map((item, idx) => {
+                            const product = items.find(i => i.product_id === item.productId);
+                            return `
+                                <tr>
+                                    <td>${idx + 1}</td>
+                                    <td>
+                                        <strong>${product?.name || 'Unknown'}</strong>
+                                        <div style="font-size: 11px; color: #64748b;">SKU: ${product?.sku || item.productId}</div>
+                                    </td>
+                                    <td class="text-right">${item.qtyOrdered}</td>
+                                    <td class="text-right">${(item.unitPrice || 0).toFixed(2)}</td>
+                                    <td class="text-right" style="font-weight: 500;">${(item.total || 0).toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                <div class="summary">
+                    <div class="summary-card">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>LKR ${(selectedPO.totalAmount || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Discount</span>
+                            <span>LKR ${(selectedPO.discountAmount || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Net Total</span>
+                            <span>LKR ${(selectedPO.netAmount || 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const win = window.open("", "_blank", "width=900,height=750");
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => {
+            win.print();
+            win.close();
+        }, 300);
+    };
+
     if (view === 'detail' && selectedPO) {
         return (
             <div className="space-y-6">
@@ -475,16 +585,23 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                                     <span>LKR {(selectedPO.netAmount || 0).toFixed(2)}</span>
                                 </div>
                             </div>
-                            {selectedPO.status && String(selectedPO.status).toUpperCase() !== 'REJECTED' && (
-                                <div className="border-t pt-4">
+                            <div className="border-t pt-4 space-y-3">
+                                <button
+                                    onClick={handlePrintPO}
+                                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
+                                >
+                                    <Printer size={20} /> Print PO Details
+                                </button>
+
+                                {selectedPO.status && String(selectedPO.status).toUpperCase() !== 'REJECTED' && (
                                     <button
                                         onClick={handleCreateDispatchFromPO}
                                         className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
                                     >
                                         <CheckCircle size={20} /> Create Dispatch from PO
                                     </button>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
