@@ -98,7 +98,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         if (poItems && poItems.length > 0) {
             const poItem = poItems.find(pi => String(pi.productId || pi.product_id) === String(productId));
             if (poItem) {
-                const qty = poItem.qtyReceived ?? poItem.qty_received;
+                const qty = poItem.qtyDispatched ?? poItem.qty_dispatched ?? poItem.qtyReceived ?? poItem.qty_received;
                 if (qty != null) {
                     backendQty = Number(qty);
                 }
@@ -109,7 +109,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             .filter((dispatch) => String(dispatch.po_id || dispatch.poId) === String(poId) && dispatch.status === 'APPROVED')
             .flatMap((dispatch) => dispatch.items || [])
             .filter((item) => String(item.product_id || item.productId) === String(productId))
-            .reduce((sum, item) => sum + Number(item.qty_received || item.quantity || item.qtyReceived || 0), 0);
+            .reduce((sum, item) => sum + Number(item.qtyDispatched || item.qty_dispatched || item.qty_received || item.quantity || item.qtyReceived || 0), 0);
             
         return Math.max(backendQty, historyQty);
     };
