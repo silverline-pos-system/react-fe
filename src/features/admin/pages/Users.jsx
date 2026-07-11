@@ -92,7 +92,7 @@ export default function Users() {
             return;
         }
 
-        searchTimeoutRef.current = setTimeout(async () => {
+        const performSearch = async () => {
             try {
                 setSearchLoading(true);
                 const data = await searchUsers(q.trim());
@@ -102,7 +102,9 @@ export default function Users() {
             } finally {
                 setSearchLoading(false);
             }
-        }, 300);
+        };
+
+        searchTimeoutRef.current = setTimeout(performSearch, 300);
 
         return () => {
             if (searchTimeoutRef.current) {

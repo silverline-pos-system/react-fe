@@ -9,6 +9,7 @@ import {
     Filter,
     User,
     Mail,
+    Phone,
     Calendar,
     MessageSquare,
     Shield,
@@ -74,6 +75,12 @@ function ActionModal({ isOpen, onClose, onConfirm, request, action, loading }) {
                             <Mail className="w-4 h-4 text-slate-400" />
                             <span className="text-slate-600">{request.email}</span>
                         </div>
+                        {request.phone && (
+                            <div className="flex items-center gap-2 text-sm">
+                                <Phone className="w-4 h-4 text-slate-400" />
+                                <span className="text-slate-600">{request.phone}</span>
+                            </div>
+                        )}
                         <div className="flex items-center gap-2 text-sm">
                             <Calendar className="w-4 h-4 text-slate-400" />
                             <span className="text-slate-600">
@@ -125,8 +132,8 @@ function ActionModal({ isOpen, onClose, onConfirm, request, action, loading }) {
                         onClick={() => onConfirm(notes)}
                         disabled={loading}
                         className={`px-5 py-2 text-sm font-bold text-white rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 ${isApprove
-                                ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
-                                : "bg-red-600 hover:bg-red-700 shadow-red-200"
+                            ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                            : "bg-red-600 hover:bg-red-700 shadow-red-200"
                             }`}
                     >
                         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -234,7 +241,8 @@ export default function PasswordRequests() {
         return (
             r.username?.toLowerCase().includes(q) ||
             r.fullName?.toLowerCase().includes(q) ||
-            r.email?.toLowerCase().includes(q)
+            r.email?.toLowerCase().includes(q) ||
+            r.phone?.includes(q)
         );
     });
 
@@ -299,7 +307,7 @@ export default function PasswordRequests() {
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            className="pl-9 pr-4 py-2 rounded-xl border border-brand-border bg-white outline-none focus:ring-2 focus:ring-brand-secondary text-sm font-semibold cursor-pointer"
+                            className="pl-9 pr-10 py-2 rounded-xl border border-brand-border bg-white outline-none focus:ring-2 focus:ring-brand-secondary text-sm font-semibold cursor-pointer"
                         >
                             <option value="PENDING">Pending</option>
                             <option value="APPROVED">Approved</option>
@@ -339,6 +347,7 @@ export default function PasswordRequests() {
                             <thead className="bg-slate-50 text-slate-600 border-b border-brand-border font-bold">
                                 <tr>
                                     <th className="px-6 py-4">User</th>
+                                    <th className="px-6 py-4">Contact Number</th>
                                     <th className="px-6 py-4">Date Requested</th>
                                     <th className="px-6 py-4">Reason / Notes</th>
                                     <th className="px-6 py-4">Status</th>
@@ -359,6 +368,9 @@ export default function PasswordRequests() {
                                                     <div className="text-xs text-slate-400">@{req.username} • {req.email}</div>
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 font-medium">
+                                            {req.phone || <span className="text-slate-300">N/A</span>}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600">
                                             {new Date(req.createdAt).toLocaleString("en-US", {
