@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function ConfirmActionModal({
   isOpen,

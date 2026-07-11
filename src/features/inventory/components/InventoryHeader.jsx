@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, LogOut, Menu } from 'lucide-react';
-import SecondaryRoleBanner from '@/components/common/SecondaryRoleBanner';
+import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
 
 const InventoryHeader = ({ branchName, userRole, userName, goToAdmin, goToManager, handleLogout, onMenuClick }) => {
     const [currentTime, setCurrentTime] = useState(new Date());

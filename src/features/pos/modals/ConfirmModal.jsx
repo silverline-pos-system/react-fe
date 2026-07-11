@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function ConfirmModal({ title, message, onConfirm, onCancel, isAlert = false }) {

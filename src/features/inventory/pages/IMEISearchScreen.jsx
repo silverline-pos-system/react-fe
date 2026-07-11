@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Loader2, Tag, Calendar, MapPin, User, CheckCircle, Smartphone, AlertCircle, History, Filter } from 'lucide-react';
 import inventoryService from '@/features/inventory/services/inventoryService';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const IMEISearchScreen = ({ branches = [], items = [], initialFilters = null }) => {
     const [query, setQuery] = useState('');

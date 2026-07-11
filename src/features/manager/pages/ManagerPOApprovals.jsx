@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { poService } from '@/features/procurement/services/poService';
 import inventoryService from '@/features/inventory/services/inventoryService';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 // Reject Modal Component
 function RejectModal({ isOpen, onClose, onConfirm, loading }) {

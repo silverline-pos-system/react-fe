@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { RotateCcw, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { posService } from '@/features/pos/services/posService';
 

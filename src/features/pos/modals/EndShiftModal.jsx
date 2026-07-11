@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Power, ArrowRight, ShieldCheck, Banknote, AlertTriangle, CheckCircle, Calculator, CreditCard, ArrowUpRight, ArrowDownLeft, X, QrCode, RefreshCw } from 'lucide-react';
-import useEscapeClose from '@/hooks/useEscapeClose';
-import ConfirmActionModal from '@/components/common/ConfirmActionModal';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
+import ConfirmActionModal from '@/shared/components/ConfirmActionModal';
 
 const DENOMINATIONS = [5000, 1000, 500, 100, 50, 20, 10, 5, 2, 1];
 

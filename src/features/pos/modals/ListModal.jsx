@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { RotateCcw, X, Search, Clock, CornerUpLeft, Loader2, User, ShoppingCart, Receipt, AlertCircle } from 'lucide-react';
 import { posService } from '@/features/pos/services/posService';
 

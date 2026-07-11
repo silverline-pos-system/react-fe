@@ -22,10 +22,10 @@ import {
     Trash2
 } from 'lucide-react';
 
-import { servicesService } from '../services/servicesService';
+import { servicesService } from '@/shared/services/servicesService';
 import MobileRepairModal from '@/features/pos/modals/MobileRepairModal';
 import DtvRequestModal from '@/features/pos/modals/DtvRequestModal';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 const STATUS_COLORS = {
     RECEIVED: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },

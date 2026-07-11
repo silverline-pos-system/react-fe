@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Routes, Route } from 'react-router-dom';
 import { Tv, Activity, CheckCircle, Clock, MapPin, Phone, User, Wrench, ChevronRight, CheckCircle2, DollarSign, Package, AlertTriangle, LogOut, X, Plus } from 'lucide-react';
-import { servicesService } from '@/services/servicesService';
+import { servicesService } from '@/shared/services/servicesService';
 import DtvRequestModal from '@/features/pos/modals/DtvRequestModal';
-import SecondaryRoleBanner from '@/components/common/SecondaryRoleBanner';
+import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
 import { useSystemName } from '@/context/SystemNameContext';
-import ConfirmActionModal from '@/components/common/ConfirmActionModal';
+import ConfirmActionModal from '@/shared/components/ConfirmActionModal';
 import DtvServiceCard from '../components/DtvServiceCard';
 import { isToday } from '../utils/techHelpers';
 

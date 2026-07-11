@@ -7,14 +7,14 @@ import ProductGrid from '@/features/pos/components/ProductGrid';
 import { posService } from '@/features/pos/services/posService';
 import { authService } from '@/features/auth/services/authService';
 import { poService } from '@/features/procurement/services/poService';
-import { servicesService } from '@/features/manager/services/servicesService';
+import { servicesService } from '@/shared/services/servicesService';
 import { getApprovals } from '@/features/manager/services/managerService';
 import { NotificationProvider, useNotification } from '@/features/pos/context/NotificationContext';
 import NotificationPanel from '@/features/pos/components/NotificationPanel';
 import { printReceiptPDF, printShiftSummary, printPayInOutReceipt } from '@/features/pos/utils/receiptPrinter';
 import { useFeatures } from '@/context/FeatureContext';
 import { useSystemName } from '@/context/SystemNameContext';
-import SecondaryRoleBanner from '@/components/common/SecondaryRoleBanner';
+import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
 
 // Modals
 import PriceCheckModal from '@/features/pos/modals/PriceCheckModal';

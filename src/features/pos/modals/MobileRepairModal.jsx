@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { X, Wrench, Smartphone, Search, CheckCircle2, Phone, User, CreditCard, ChevronRight, Activity, ShoppingCart, Eye, ArrowLeft, Clock, DollarSign, Package } from 'lucide-react';
-import { servicesService } from '@/features/manager/services/servicesService';
+import { servicesService } from '@/shared/services/servicesService';
 import { printMobileRepairReceipt } from '@/features/pos/utils/receiptPrinter';
 
 const STATUS_COLORS = {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Archive, Search, X, Building2, Phone, Mail, MapPin, Activity } from 'lucide-react';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const SupplierManagementScreen = ({
     suppliers,

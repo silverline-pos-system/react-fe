@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import useEscapeClose from "@/hooks/useEscapeClose";
+import useEscapeClose from "@/shared/hooks/useEscapeClose";
 
 export default function QuickActionsModal({ open, onClose }) {
   useEscapeClose(onClose, open);

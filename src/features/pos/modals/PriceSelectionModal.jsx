@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { X, Tag, Package, DollarSign, Layers, AlertCircle, ChevronRight, Zap } from 'lucide-react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 const PriceSelectionModal = ({ isOpen, onClose, product, onSelectPrice }) => {
     useEscapeClose(onClose, isOpen);

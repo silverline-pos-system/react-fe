@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Award, Mail, X, Gift, AlertCircle, ArrowRight, CheckCircle } from "lucide-react";
 import api from "@/lib/api";
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function LoyaltyRedeemModal({ isOpen, onClose, customer, onRedeemSuccess, onNotify }) {
     useEscapeClose(onClose, isOpen);

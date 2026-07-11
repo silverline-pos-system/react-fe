@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScanBarcode, Hand, CornerUpLeft, RotateCw, Printer, Percent, Disc, Tv, Wrench, Award, Smartphone } from 'lucide-react';
 import { posService } from '@/features/pos/services/posService';
-import FeatureGate from '@/components/common/FeatureGate';
+import FeatureGate from '@/shared/components/FeatureGate';
 
 export default function ControlPanel({
   inputRef,

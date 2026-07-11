@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import inventoryService from '@/features/inventory/services/inventoryService';
 import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
 
 const AddItemScreen = ({ onClose, setActiveScreen, categories, subCategories = [], brands, onSaved, itemToEdit, existingItems = [] }) => {
     const { success, error, warning } = useInventoryNotification();

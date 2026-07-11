@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Archive, Tag, Box, Layers, ShoppingBag, Coffee, Smartphone, Headphones, Shirt, Watch, Utensils, Zap, Gift, Briefcase, Camera, Music, Anchor, Globe, Key, Map, Sun, Moon, Star, Heart, X, Info } from 'lucide-react';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const BrandManagementScreen = ({
     brands,

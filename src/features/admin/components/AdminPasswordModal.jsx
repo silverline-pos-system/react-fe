@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ShieldAlert, Loader2, X, Lock, Eye, EyeOff } from "lucide-react";
-import useEscapeClose from "@/hooks/useEscapeClose";
+import useEscapeClose from "@/shared/hooks/useEscapeClose";
 
 export default function AdminPasswordModal({
     isOpen,

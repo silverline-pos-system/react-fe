@@ -2,11 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, FileText, CheckCircle, Clock, Save, Trash2, ArrowLeft, Download, DollarSign, Printer } from 'lucide-react';
 import { poService } from '@/features/procurement/services/poService';
 import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
-import Pagination from '@/components/common/Pagination';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
+import Pagination from '@/shared/components/Pagination';
+import { useSystemName } from '@/context/SystemNameContext';
 
 const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], brands = [], setActiveScreen }) => {
     const { success, error, warning, confirm } = useInventoryNotification();
+    const { systemName } = useSystemName();
     const [view, setView] = useState('list'); // 'list', 'create', 'detail'
     const [pos, setPos] = useState([]);
     const [selectedPO, setSelectedPO] = useState(null);
@@ -396,7 +398,7 @@ const POManagementScreen = ({ items, suppliers, branches, categories = [], subCa
                 <div class="header">
                     <div>
                         <h1>PURCHASE ORDER</h1>
-                        <p style="font-size: 14px; color: #64748b; margin: 4px 0 0 0;">ROCS Inventory Management</p>
+                        <p style="font-size: 14px; color: #64748b; margin: 4px 0 0 0;">${systemName} - Inventory Management</p>
                     </div>
                     <div style="text-align: right;">
                         <p style="font-size: 16px; font-weight: bold; font-family: monospace; margin: 0;">${selectedPO.poNo}</p>

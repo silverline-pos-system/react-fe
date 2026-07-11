@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
+import api from '@/lib/api';
 
 const SystemNameContext = createContext({
     systemName: 'SmartRetail Pro',
@@ -28,6 +28,12 @@ export function SystemNameProvider({ children }) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchSystemName();
     }, [fetchSystemName]);
+
+    // Keep browser tab title in sync with system name
+    useEffect(() => {
+        document.title = systemName;
+    }, [systemName]);
+
 
     const refreshSystemName = useCallback(() => {
         fetchSystemName();

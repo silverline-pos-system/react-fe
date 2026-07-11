@@ -1,4 +1,4 @@
-import api from "@/services/api";
+import api from "@/lib/api";
 
 const STORAGE_KEY = "print_header_footer_settings_v1";
 const PRIMARY_API = "/v1/admin/print-settings/header-footer";

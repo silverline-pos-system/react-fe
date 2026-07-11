@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Store, ChevronDown, Check, Building2 } from 'lucide-react';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '@/context/BranchContext';
 
 export default function BranchSwitcher() {
   const { selectedBranchId, branches, currentBranchName, switchBranch } = useBranch();

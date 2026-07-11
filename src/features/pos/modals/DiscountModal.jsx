@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { X, Percent, DollarSign, Tag } from 'lucide-react';
 
 export default function DiscountModal({ onClose, onApply, selectedItem, cartTotal }) {

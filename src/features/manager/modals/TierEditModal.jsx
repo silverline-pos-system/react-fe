@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, Info } from 'lucide-react';
 import { getTierRules, updateTierRules } from '../services/managerService';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function TierEditModal({ onClose, onUpdate }) {
     useEscapeClose(onClose);

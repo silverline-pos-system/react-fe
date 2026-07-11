@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import useEscapeClose from "@/hooks/useEscapeClose";
+import useEscapeClose from "@/shared/hooks/useEscapeClose";
 
 const KEY = "srp_manager_shift";
 

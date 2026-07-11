@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, LayoutDashboard, Menu } from "lucide-react";
 import { logActivity } from "../services/managerService";
-import SecondaryRoleBanner from "@/components/common/SecondaryRoleBanner";
-import ConfirmActionModal from "@/components/common/ConfirmActionModal";
+import SecondaryRoleBanner from "@/shared/components/SecondaryRoleBanner";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 
 export default function Topbar({ onMenuClick = () => {} }) {
   const [time, setTime] = useState(new Date());

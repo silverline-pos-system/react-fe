@@ -5,7 +5,7 @@
  * and prints 80mm thermal receipts styled to match the Silverline Super format.
  */
 
-import { resolvePrintHeaderFooterForBranchRemote } from "@/services/printHeaderFooterService";
+import { resolvePrintHeaderFooterForBranchRemote } from "@/features/admin/services/printHeaderFooterService";
 
 const formatMoney = (value) =>
   Number(value || 0).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

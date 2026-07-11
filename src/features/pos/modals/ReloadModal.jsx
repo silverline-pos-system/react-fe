@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Smartphone, Hash, Banknote, Check } from 'lucide-react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function ReloadModal({ onClose, onConfirm }) {
     useEscapeClose(onClose);

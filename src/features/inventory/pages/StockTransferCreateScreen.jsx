@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, Clock } from 'lucide-react';
 import storeService from '@/features/inventory/services/storeService';
 import { inventoryService } from '@/features/inventory/services/inventoryService';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const StockTransferCreateScreen = ({
     transferForm,

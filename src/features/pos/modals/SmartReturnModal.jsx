@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import {
     RotateCcw, X, Search, Clock, User, ShoppingCart, Receipt, AlertCircle,
     Loader2, CheckCircle, AlertTriangle, Package, CreditCard, Banknote,

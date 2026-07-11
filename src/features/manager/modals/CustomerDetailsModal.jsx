@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, MapPin, Calendar, Award, Gift, Clock, Save, Loader2, Ban, ShieldCheck, ShoppingBag, Receipt, ArrowRight } from 'lucide-react';
 import { updateCustomer, adjustCustomerPoints, getCustomerSales } from '../services/managerService';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function CustomerDetailsModal({ customer, onClose, onUpdate }) {
     useEscapeClose(onClose);
