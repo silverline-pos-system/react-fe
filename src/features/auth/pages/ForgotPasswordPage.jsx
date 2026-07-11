@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import bgImage from "@/assets/images/registration-bg.png";
 import { authService } from "@/features/auth/services/authService";
+import { useSystemName } from '@/context/SystemNameContext';
 
 const BackgroundWrapper = ({ children }) => (
     <div className="relative min-h-screen flex items-center justify-center p-4 font-sans overflow-hidden">
@@ -31,6 +32,7 @@ const BackgroundWrapper = ({ children }) => (
 
 export default function ForgotPasswordPage() {
     const navigate = useNavigate();
+    const { systemName } = useSystemName();
     const [step, setStep] = useState(1); // 1 = form, 2 = success
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -169,7 +171,7 @@ export default function ForgotPasswordPage() {
                     <div className="relative z-10">
                         <div className="flex items-center gap-2 mb-6">
                             <ShieldCheck className="w-8 h-8" />
-                            <span className="font-bold text-xl tracking-tight">Smart Retail <span style={{ color: 'rgb(52 211 153 / var(--tw-text-opacity, 1))' }}>Pro</span></span>
+                            <span className="font-bold text-xl tracking-tight">{systemName}</span>
                         </div>
                         <h2 className="text-3xl font-bold mb-4">Reset Password</h2>
                         <p className="text-slate-400 text-sm leading-relaxed">

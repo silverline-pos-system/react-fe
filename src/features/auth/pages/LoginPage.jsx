@@ -4,6 +4,7 @@ import { ShieldCheck, User, Lock, Loader2, Shield, AlertCircle, CheckCircle, Arr
 import bgImage from "@/assets/images/registration-bg.png";
 import { authService } from '@/features/auth/services/authService';
 import { getMySecondaryRole } from '@/features/manager/services/managerService';
+import { useSystemName } from '@/context/SystemNameContext';
 
 const BackgroundWrapper = ({ children }) => (
   <div className="relative min-h-screen flex items-center justify-center p-4 font-sans overflow-hidden">
@@ -23,6 +24,7 @@ const BackgroundWrapper = ({ children }) => (
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { systemName } = useSystemName();
   const [showSuccessModal, setShowSuccessModal] = useState(location.state?.registrationSuccess || false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -174,7 +176,7 @@ export default function LoginPage() {
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-6">
               <ShieldCheck className="w-8 h-8" />
-              <span className="font-bold text-xl tracking-tight">Smart Retail <span style={{ color: 'rgb(52 211 153 / var(--tw-text-opacity, 1))' }}>Pro</span></span>
+              <span className="font-bold text-xl tracking-tight">{systemName}</span>
             </div>
             <h2 className="text-3xl font-bold mb-4">Welcome Back.</h2>
             <p className="text-slate-400 text-sm leading-relaxed">
@@ -251,7 +253,7 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button type="submit" disabled={loading}
               className="w-full bg-brand hover:bg-brand-hover text-white font-bold py-4 rounded-xl shadow-lg mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Login to ROCS"}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Login to ${systemName}`}
             </button>
 
             <div className="mt-4 text-center">

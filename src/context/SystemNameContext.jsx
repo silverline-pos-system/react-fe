@@ -29,6 +29,12 @@ export function SystemNameProvider({ children }) {
         fetchSystemName();
     }, [fetchSystemName]);
 
+    // Keep browser tab title in sync with system name
+    useEffect(() => {
+        document.title = systemName;
+    }, [systemName]);
+
+
     const refreshSystemName = useCallback(() => {
         fetchSystemName();
     }, [fetchSystemName]);

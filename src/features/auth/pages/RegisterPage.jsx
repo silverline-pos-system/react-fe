@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import bgImage from "@/assets/images/registration-bg.png";
 import { authService } from '@/features/auth/services/authService';
+import { useSystemName } from '@/context/SystemNameContext';
 
 // ============================================================================
 // CONSTANTS & CONFIGURATION
@@ -38,6 +39,10 @@ const VALIDATION_RULES = {
         minLength: 6,
         requiredMsg: "Password is required",
         minLengthMsg: "Min 6 characters required"
+    },
+    confirmPassword: {
+        required: true,
+        requiredMsg: "Please confirm your password"
     },
     phone: {
         required: true,
@@ -145,6 +150,7 @@ const parseBackendError = (error) => {
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const { systemName } = useSystemName();
     const [loading, setLoading] = useState(false);
 
     // ————————— Form State —————————
@@ -153,6 +159,7 @@ export default function RegisterPage() {
         username: '',
         email: '',
         password: '',
+        confirmPassword: '',
         phone: ''
     });
 
@@ -171,6 +178,11 @@ export default function RegisterPage() {
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: "" }));
         }
+
+        // Clear confirm password mismatch when either password field changes
+        if (name === 'password' && errors.confirmPassword === 'Passwords do not match') {
+            setErrors(prev => ({ ...prev, confirmPassword: '' }));
+        }
     };
 
     const handleBlur = async (e) => {
@@ -179,6 +191,8 @@ export default function RegisterPage() {
         const error = validateField(name, value);
         if (error) {
             setErrors(prev => ({ ...prev, [name]: error }));
+        } else if (name === 'confirmPassword' && value && value !== formData.password) {
+            setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
         } else if (name === "username" && value.trim().length >= 3) {
             try {
                 const exists = await authService.checkUsername(value.trim());
@@ -203,6 +217,10 @@ export default function RegisterPage() {
             const error = validateField(key, formData[key]);
             if (error) newErrors[key] = error;
         });
+        // Cross-field: confirm password must match
+        if (!newErrors.confirmPassword && formData.confirmPassword !== formData.password) {
+            newErrors.confirmPassword = 'Passwords do not match';
+        }
         return newErrors;
     };
 
@@ -230,7 +248,9 @@ export default function RegisterPage() {
                 return;
             }
 
-            await authService.registerUser(formData);
+            // Exclude confirmPassword from the API payload
+            const { confirmPassword: _, ...registrationData } = formData;
+            await authService.registerUser(registrationData);
             navigate('/login', { state: { registrationSuccess: true } });
 
         } catch (err) {
@@ -315,7 +335,7 @@ export default function RegisterPage() {
                     <div>
                         <div className="flex items-center gap-2 mb-6">
                             <ShieldCheck className="w-8 h-8" />
-                            <span className="font-bold text-xl">Smart Retail Pro</span>
+                            <span className="font-bold text-xl">{systemName}</span>
                         </div>
                         <h2 className="text-3xl font-bold mb-4">Join the Team</h2>
                         <p className="text-slate-300 text-sm">
@@ -378,6 +398,15 @@ export default function RegisterPage() {
                         {renderField({
                             name: 'password',
                             label: 'Password',
+                            icon: Lock,
+                            type: 'password',
+                            placeholder: '•••••••'
+                        })}
+
+                        {/* Confirm Password */}
+                        {renderField({
+                            name: 'confirmPassword',
+                            label: 'Confirm Password',
                             icon: Lock,
                             type: 'password',
                             placeholder: '•••••••'
