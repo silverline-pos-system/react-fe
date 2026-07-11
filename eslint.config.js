@@ -24,6 +24,25 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/pos', '@/pos/**',
+                '@/inventory', '@/inventory/**',
+                '@/auth', '@/auth/**',
+                '@/services', '@/services/**',
+                '@/utils', '@/utils/**',
+                '@/hooks', '@/hooks/**',
+                '@/components', '@/components/**',
+              ],
+              message: 'Please import from @/features/*, @/shared/*, or @/lib/* instead.'
+            }
+          ]
+        }
+      ]
     },
   },
 ])
