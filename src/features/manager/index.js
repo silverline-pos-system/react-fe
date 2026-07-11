@@ -15,4 +15,4 @@ export { default as ProfitLoss } from './pages/ProfitLoss';
 
 export { default as managerService } from './services/managerService';
 export { default as expenseService } from './services/expenseService';
-export { default as servicesService } from './services/servicesService';
+export { servicesService } from '@/shared/services/servicesService';

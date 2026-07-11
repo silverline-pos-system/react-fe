@@ -5,7 +5,7 @@ import {
     ChevronDown, CheckCircle, XCircle,
     BarChart3, Tag
 } from 'lucide-react';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const ItemListScreen = ({
     items,

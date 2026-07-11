@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DollarSign, X, Activity } from "lucide-react";
-import { servicesService } from "@/services/servicesService";
+import { servicesService } from "@/shared/services/servicesService";
 
 export default function FinalizeCostModal({
   onClose,

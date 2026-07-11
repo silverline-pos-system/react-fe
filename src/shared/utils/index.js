@@ -1,1 +1,1 @@
-export * from '@/shared/storage';
+export * from '@/lib/storage';

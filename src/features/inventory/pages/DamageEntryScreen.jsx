@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import storeService from '@/features/inventory/services/storeService';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
-import Pagination from '@/components/common/Pagination';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
+import Pagination from '@/shared/components/Pagination';
 
 const DamageEntryScreen = ({
     damageForm,

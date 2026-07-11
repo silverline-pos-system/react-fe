@@ -34,9 +34,9 @@ import storeService from '@/features/inventory/services/storeService';
 
 import { InventoryNotificationProvider, useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
 import InventoryToastNotification from '@/features/inventory/components/InventoryToastNotification';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
 import InventoryHeader from '@/features/inventory/components/InventoryHeader';
-import FeatureGate from '@/components/common/FeatureGate';
+import FeatureGate from '@/shared/components/FeatureGate';
 
 
 const InventorySystemContent = () => {

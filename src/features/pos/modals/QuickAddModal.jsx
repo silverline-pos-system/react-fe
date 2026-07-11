@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Search, Package, Loader2, Star, ShoppingCart, Check } from 'lucide-react';
 import { posService } from '@/features/pos/services/posService';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 export default function QuickAddModal({ onClose, onProductSelected, onAddToQuickPick, branchId }) {
     useEscapeClose(onClose);

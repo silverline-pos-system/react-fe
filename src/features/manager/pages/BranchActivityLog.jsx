@@ -8,7 +8,7 @@ import {
     BarChart2, ArrowUpRight, ArrowDownRight, Zap
 } from "lucide-react";
 import { getBranchActivityLog, getBranchActivityLogPdf } from "../services/managerService";
-import Pagination from "@/components/common/Pagination";
+import Pagination from "@/shared/components/Pagination";
 
 const activityConfig = {
     SALE: { icon: ShoppingCart, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Sale' },

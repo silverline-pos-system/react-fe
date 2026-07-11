@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, FileText, CheckCircle, Clock, Save, Trash2, ArrowLeft, Download, DollarSign, Printer } from 'lucide-react';
 import { poService } from '@/features/procurement/services/poService';
 import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
-import Pagination from '@/components/common/Pagination';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
+import Pagination from '@/shared/components/Pagination';
 
 const POManagementScreen = ({ items, suppliers, branches, categories = [], subCategories = [], brands = [], setActiveScreen }) => {
     const { success, error, warning, confirm } = useInventoryNotification();

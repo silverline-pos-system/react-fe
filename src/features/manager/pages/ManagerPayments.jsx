@@ -6,7 +6,7 @@ import {
     ChevronDown, ChevronUp, X, Search
 } from 'lucide-react';
 import { dispatchPaymentService } from '@/features/pos/services/dispatchPaymentService';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 const STATUS_CONFIG = {
     'PENDING': {

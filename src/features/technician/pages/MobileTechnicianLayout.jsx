@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Routes, Route } from 'react-router-dom';
 import { Wrench, CheckCircle, Activity, Play, TabletSmartphone, Cpu, User, AlertCircle, CheckCircle2, DollarSign, LogOut, ChevronRight, X, Phone, MapPin, Plus } from 'lucide-react';
-import { servicesService } from '@/services/servicesService';
+import { servicesService } from '@/shared/services/servicesService';
 import MobileRepairModal from '@/features/pos/modals/MobileRepairModal';
-import SecondaryRoleBanner from '@/components/common/SecondaryRoleBanner';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { useSystemName } from '@/context/SystemNameContext';
-import ConfirmActionModal from '@/components/common/ConfirmActionModal';
+import ConfirmActionModal from '@/shared/components/ConfirmActionModal';
 import PORequestModal from '../components/PORequestModal';
 import FinalizeCostModal from '../components/FinalizeCostModal';
 import { formatRepairNo, getRepairStatusBadgeColor } from '../utils/techHelpers';

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { LogOut, LayoutDashboard, Users, Menu } from "lucide-react";
-import ConfirmActionModal from "@/components/common/ConfirmActionModal";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 
 export default function Topbar({ onMenuClick = () => { } }) {
   const navigate = useNavigate();

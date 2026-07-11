@@ -6,8 +6,8 @@ import inventoryService from '@/features/inventory/services/inventoryService';
 import storeService from '@/features/inventory/services/storeService';
 import { poService } from '@/features/procurement/services/poService';
 import { useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
-import { useEnterKeyNavigation } from '@/hooks/useEnterKeyNavigation';
-import Pagination from '@/components/common/Pagination';
+import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
+import Pagination from '@/shared/components/Pagination';
 import api from '@/lib/api';
 
 const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) => {

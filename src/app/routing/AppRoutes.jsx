@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import FeatureRouteGuard from '@/components/common/FeatureRouteGuard';
+import FeatureRouteGuard from '@/shared/components/FeatureRouteGuard';
 import { NotificationProvider } from '@/features/pos/context/NotificationContext';
 import ProtectedRoute from './ProtectedRoute';
 import RoleBasedRedirect from './RoleBasedRedirect';

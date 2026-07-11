@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import useEscapeClose from '@/hooks/useEscapeClose';
+import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import { CreditCard, Banknote, X, CheckCircle, Trash2, Plus, QrCode, Building2, Loader2 } from 'lucide-react';
 
 const PAYMENT_METHODS = [

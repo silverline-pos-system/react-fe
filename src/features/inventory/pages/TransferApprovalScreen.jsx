@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStatusColor } from '@/utils/helpers';
+import { getStatusColor } from '@/shared/utils/helpers';
 import storeService from '@/features/inventory/services/storeService';
 
 const TransferApprovalScreen = ({ stockTransfers: initialTransfers, branches }) => {

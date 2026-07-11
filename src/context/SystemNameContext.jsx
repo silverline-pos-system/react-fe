@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
+import api from '@/lib/api';
 
 const SystemNameContext = createContext({
     systemName: 'SmartRetail Pro',

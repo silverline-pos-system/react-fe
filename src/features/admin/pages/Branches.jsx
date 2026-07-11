@@ -9,7 +9,7 @@ import {
   toggleBranchStatus,
 } from "../services/adminApi";
 import AdminPasswordModal from "../components/AdminPasswordModal";
-import useEscapeClose from "@/hooks/useEscapeClose";
+import useEscapeClose from "@/shared/hooks/useEscapeClose";
 
 export default function Branches() {
   const [q, setQ] = useState("");

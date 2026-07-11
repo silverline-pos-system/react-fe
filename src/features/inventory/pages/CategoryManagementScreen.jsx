@@ -3,7 +3,7 @@ import {
     Plus, Tag, Edit, Trash2, X, Search, ChevronDown, ChevronRight, MoreVertical, FolderPlus,
     Box, Archive, Layers, ShoppingBag, Coffee, Smartphone, Headphones, Shirt, Watch, Utensils, Zap, Gift, Briefcase, Camera, Music, Anchor, Globe, Key, Map, Sun, Moon, Star, Heart
 } from 'lucide-react';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const CategoryManagementScreen = ({
     categories,

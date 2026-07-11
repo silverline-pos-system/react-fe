@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Download, Search, RefreshCw, Package, AlertTriangle, Calendar, ChevronDown, X, ArrowUp, ArrowDown } from 'lucide-react';
 import storeService from '@/features/inventory/services/storeService';
-import Pagination from '@/components/common/Pagination';
+import Pagination from '@/shared/components/Pagination';
 
 const BatchWiseStockScreen = ({
     batches: initialBatches,

@@ -19,8 +19,8 @@ import {
     approvePasswordReset,
     rejectPasswordReset,
 } from "../services/adminApi";
-import useEscapeClose from "@/hooks/useEscapeClose";
-import Pagination from "@/components/common/Pagination";
+import useEscapeClose from "@/shared/hooks/useEscapeClose";
+import Pagination from "@/shared/components/Pagination";
 
 // Confirmation Modal
 function ActionModal({ isOpen, onClose, onConfirm, request, action, loading }) {
