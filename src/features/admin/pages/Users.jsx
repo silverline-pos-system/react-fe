@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, Edit, Trash2, Power, User, Search, Loader2, UserPlus } from "lucide-react";
+import { authService } from "@/features/auth/services/authService";
 import {
     getAllUsers,
     searchUsers,
@@ -23,6 +24,7 @@ export default function Users() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [employeeId, setEmployeeId] = useState("");
+    const [usernameError, setUsernameError] = useState("");
 
     // Search and UI state
     const [q, setQ] = useState("");
@@ -119,6 +121,7 @@ export default function Users() {
         setEmail("");
         setEmployeeId("");
         setEditUser(null);
+        setUsernameError("");
     }
 
     function handleEditUser(user) {
@@ -186,6 +189,17 @@ export default function Users() {
 
         try {
             setSubmitting(true);
+
+            // Double check username availability before registering
+            const exists = await authService.checkUsername(un);
+            if (exists) {
+                setUsernameError("Username already exists");
+                alert("Username already exists. Please choose another.");
+                setSubmitting(false);
+                return;
+            } else {
+                setUsernameError("");
+            }
             await registerManager({
                 fullName: fn,
                 username: un,
@@ -293,12 +307,35 @@ export default function Users() {
                         <div>
                             <label className="text-sm font-bold">Username</label>
                             <input
-                                className="mt-1 w-full px-3 py-2 rounded-xl border border-brand-border outline-none focus:ring-2 focus:ring-brand-secondary disabled:bg-gray-100 disabled:text-gray-500"
+                                className={`mt-1 w-full px-3 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand-secondary disabled:bg-gray-100 disabled:text-gray-500 ${
+                                    usernameError ? 'border-red-400 focus:ring-red-100' : 'border-brand-border'
+                                }`}
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(e) => {
+                                    setUsername(e.target.value);
+                                    if (usernameError) setUsernameError("");
+                                }}
+                                onBlur={async (e) => {
+                                    const val = e.target.value.trim();
+                                    if (val.length >= 3 && !editUser) {
+                                        try {
+                                            const exists = await authService.checkUsername(val);
+                                            if (exists) {
+                                                setUsernameError("Username already exists");
+                                            } else {
+                                                setUsernameError("");
+                                            }
+                                        } catch (err) {
+                                            console.error("Error checking username availability:", err);
+                                        }
+                                    }
+                                }}
                                 placeholder="e.g., nimal"
                                 disabled={!!editUser}
                             />
+                            {usernameError && (
+                                <p className="mt-1 text-xs font-bold text-red-500">{usernameError}</p>
+                            )}
                         </div>
 
                         {editUser && (

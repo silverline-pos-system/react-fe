@@ -173,12 +173,23 @@ export default function RegisterPage() {
         }
     };
 
-    const handleBlur = (e) => {
+    const handleBlur = async (e) => {
         const { name, value } = e.target;
         setTouched(prev => ({ ...prev, [name]: true }));
         const error = validateField(name, value);
         if (error) {
             setErrors(prev => ({ ...prev, [name]: error }));
+        } else if (name === "username" && value.trim().length >= 3) {
+            try {
+                const exists = await authService.checkUsername(value.trim());
+                if (exists) {
+                    setErrors(prev => ({ ...prev, username: "Username already exists" }));
+                } else {
+                    setErrors(prev => ({ ...prev, username: "" }));
+                }
+            } catch (err) {
+                console.error("Error checking username availability:", err);
+            }
         }
     };
 
@@ -210,6 +221,15 @@ export default function RegisterPage() {
         setLoading(true);
 
         try {
+            // Check username duplication before submitting
+            const exists = await authService.checkUsername(formData.username.trim());
+            if (exists) {
+                setErrors(prev => ({ ...prev, username: "Username already exists" }));
+                setTouched(prev => ({ ...prev, username: true }));
+                setLoading(false);
+                return;
+            }
+
             await authService.registerUser(formData);
             navigate('/login', { state: { registrationSuccess: true } });
 

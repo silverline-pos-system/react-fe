@@ -92,5 +92,20 @@ export const authService = {
             console.error("API Error:", error);
             throw error;
         }
+    },
+
+    // Check if username already exists
+    checkUsername: async (username) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/check-username?username=${encodeURIComponent(username)}`);
+            if (!response.ok) {
+                throw new Error("Failed to check username");
+            }
+            const data = await response.json();
+            return data.data.exists;
+        } catch (error) {
+            console.error("API Error checking username:", error);
+            return false;
+        }
     }
 };
