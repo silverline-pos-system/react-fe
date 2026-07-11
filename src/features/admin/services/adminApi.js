@@ -1,4 +1,4 @@
-import api from "@/services/api";
+import api from "@/lib/api";
 
 const PASSWORD_RESET_COUNT_STREAM_PATH = "/api/v1/admin/password-requests/stream";
 

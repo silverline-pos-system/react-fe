@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DollarSign, X, Activity } from "lucide-react";
-import { createApprovalRequest } from "@/services/managerService";
+import { createApprovalRequest } from "@/features/manager/services/managerService";
 
 export default function PORequestModal({ onClose }) {
   const [poForm, setPoForm] = useState({ amount: "", notes: "" });
