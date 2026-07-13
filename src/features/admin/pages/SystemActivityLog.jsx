@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getActivityLogs, getAllBranches, getAllUsers } from "../services/adminApi";
+import Pagination from "@/shared/components/Pagination";
 
 const severityClass = (type) => {
   const t = (type || "").toUpperCase();
@@ -19,6 +20,10 @@ export default function SystemActivityLog() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,6 +47,11 @@ export default function SystemActivityLog() {
     fetchData();
   }, []);
 
+  // Reset pagination to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [q, type, branch]);
+
   async function refresh() {
     try {
       setLoading(true);
@@ -50,6 +60,7 @@ export default function SystemActivityLog() {
       if (branch !== "All") filters.branchId = branch;
       const data = await getActivityLogs(filters);
       setRows(data || []);
+      setCurrentPage(1);
     } catch (err) {
       console.error("Error refreshing logs:", err);
     } finally {
@@ -94,6 +105,14 @@ export default function SystemActivityLog() {
       bName.includes(s)
     );
   });
+
+  // Calculate paginated subset
+  const paginatedLogs = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   if (loading) {
     return (
@@ -177,7 +196,7 @@ export default function SystemActivityLog() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e, idx) => {
+              {paginatedLogs.map((e, idx) => {
                 const logId = e.activityId || idx;
                 const time = e.createdAt ? new Date(e.createdAt).toLocaleString() : "-";
                 const actorName = getUserName(e.userId || e.performedBy);
@@ -219,6 +238,15 @@ export default function SystemActivityLog() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+        />
       </div>
     </div>
   );
