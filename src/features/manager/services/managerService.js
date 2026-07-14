@@ -674,9 +674,7 @@ export const getCustomerSales = async (id) => {
 
 export const getSecondaryRoleAssignments = async () => {
   try {
-    const branchId = getMyBranchId();
-    const params = branchId ? `?branchId=${branchId}` : '';
-    const response = await api.get(`${MANAGER_API_BASE}/secondary-roles${params}`);
+    const response = await api.get(`${MANAGER_API_BASE}/secondary-roles`);
     return response.data.data;
   } catch (error) {
     console.error("Error fetching secondary role assignments:", error);
@@ -691,7 +689,6 @@ export const assignSecondaryRole = async ({ userId, secondaryRole, expiresAt, re
       secondaryRole,
       expiresAt,
       reason,
-      assignedByBranchId: getMyBranchId(),
     });
     return response.data.data;
   } catch (error) {
