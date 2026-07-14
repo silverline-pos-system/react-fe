@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Shield, ChevronRight, Clock, ArrowLeft } from "lucide-react";
+import { getMySecondaryRole } from "@/features/manager/services/managerService";
 
 const ROLE_NAV_MAP = {
   CASHIER: { path: "/pos", label: "POS" },
@@ -86,6 +87,49 @@ export default function SecondaryRoleBanner() {
   const expiresAt = roleAccess?.expiresAt;
   const timeLeft = getTimeRemaining(expiresAt, nowMs);
   const isOnSecondary = isOnSecondaryRolePage(location.pathname, secondaryRole);
+
+  useEffect(() => {
+    // Fetch latest secondary role from server to sync state
+    const syncRole = async () => {
+      try {
+        const secondaryRoleData = await getMySecondaryRole();
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        
+        let changed = false;
+        if (secondaryRoleData && secondaryRoleData.secondaryRole) {
+          const expires = new Date(secondaryRoleData.expiresAt);
+          if (expires > new Date()) {
+            if (
+              user.secondaryRole !== secondaryRoleData.secondaryRole ||
+              user.secondaryRoleExpiresAt !== secondaryRoleData.expiresAt
+            ) {
+              user.secondaryRole = secondaryRoleData.secondaryRole;
+              user.secondaryRoleExpiresAt = secondaryRoleData.expiresAt;
+              user.secondaryRoleReason = secondaryRoleData.reason;
+              changed = true;
+            }
+          }
+        } else {
+          if (user.secondaryRole) {
+            delete user.secondaryRole;
+            delete user.secondaryRoleExpiresAt;
+            delete user.secondaryRoleReason;
+            changed = true;
+          }
+        }
+        
+        if (changed) {
+          localStorage.setItem("user", JSON.stringify(user));
+          // Trigger re-render by updating nowMs
+          setNowMs(Date.now());
+        }
+      } catch {
+        // ignore
+      }
+    };
+    
+    syncRole();
+  }, []);
 
   useEffect(() => {
     if (!expiresAt) return undefined;
