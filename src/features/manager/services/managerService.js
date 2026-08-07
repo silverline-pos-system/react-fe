@@ -710,7 +710,7 @@ export const revokeSecondaryRole = async (assignmentId) => {
 export const getMySecondaryRole = async () => {
   try {
     const response = await api.get(`${MANAGER_API_BASE}/secondary-roles/me`);
-    return response.data || null;
+    return response.data.data || null;
   } catch (error) {
     if (error?.response?.status === 404 || error?.response?.status === 403) return null;
     return null;

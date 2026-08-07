@@ -34,7 +34,7 @@ Ensure the following are installed globally on your machine:
 
 - **Java JDK 25** (Required for the backend)
 - **Node.js** (Version 18+ required for Vite)
-- **MySQL Server** (Running on port 3306)
+- **postgres** (Running on port 5432)
 
 ---
 

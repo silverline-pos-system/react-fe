@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, User, ShieldCheck, Banknote, ChevronDown, ChevronUp, LogOut, Store } from 'lucide-react';
+import { Lock, User, ShieldCheck, Banknote, LogOut, Store } from 'lucide-react';
 import { useNotification } from '@/features/pos/context/NotificationContext';
 import { authService } from '@/features/auth/services/authService';
 
-const DENOMINATIONS = [5000, 1000, 500, 100, 50, 20, 10, 5, 2, 1];
+const NOTES = [5000, 1000, 500, 100, 50, 20];
+const COINS = [10, 5, 2, 1];
+const ALL_DENOMINATIONS = [...NOTES, ...COINS];
 
 const normalizeBranches = (list) => {
     if (!Array.isArray(list)) return [];
@@ -26,22 +28,22 @@ export default function FloatModal({ onApprove, initialBranchId }) {
     const [supUser, setSupUser] = useState("");
     const [supPass, setSupPass] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [showDenominations, setShowDenominations] = useState(false);
     const [counts, setCounts] = useState({});
 
     const { addNotification } = useNotification();
 
     const totalFromDenominations = useMemo(() => {
-        return DENOMINATIONS.reduce((total, denom) => {
+        return ALL_DENOMINATIONS.reduce((total, denom) => {
             return total + (denom * (parseInt(counts[denom]) || 0));
         }, 0);
     }, [counts]);
 
+    // Synchronize denomination total to Amount input
     useEffect(() => {
-        if (showDenominations && totalFromDenominations > 0) {
+        if (totalFromDenominations > 0) {
             setAmount(totalFromDenominations.toString());
         }
-    }, [totalFromDenominations, showDenominations]);
+    }, [totalFromDenominations]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -119,7 +121,7 @@ export default function FloatModal({ onApprove, initialBranchId }) {
         setIsLoading(true);
 
         try {
-            const denominationsData = showDenominations ? DENOMINATIONS
+            const denominationsData = totalFromDenominations > 0 ? ALL_DENOMINATIONS
                 .filter(denom => (counts[denom] || 0) > 0)
                 .map(denom => ({
                     denominationValue: denom,
@@ -139,169 +141,203 @@ export default function FloatModal({ onApprove, initialBranchId }) {
         }
     };
 
+    const renderDenomRow = (denom) => {
+        return (
+            <div key={denom} className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
+                <div className="flex items-center gap-2">
+                    <span className="w-12 text-right font-mono text-sm font-bold text-slate-700">{denom}</span>
+                    <span className="text-slate-400 text-xs">x</span>
+                    <input
+                        type="number"
+                        min="0"
+                        className="w-16 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center font-mono text-sm focus:outline-none focus:border-blue-400 focus:bg-white"
+                        placeholder="0"
+                        value={counts[denom] || ""}
+                        onChange={(e) => handleCountChange(denom, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                    />
+                </div>
+                <span className="text-sm font-mono font-bold text-slate-600 text-right">
+                    LKR {(denom * (counts[denom] || 0)).toLocaleString()}
+                </span>
+            </div>
+        );
+    };
+
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white w-[420px] rounded-xl shadow-2xl overflow-hidden border border-slate-200">
+            <div className="bg-white w-[880px] max-w-[95%] rounded-xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col">
 
                 {/* Header */}
                 <div className="bg-slate-900 p-4 text-center">
                     <h2 className="text-white font-bold text-lg tracking-wide uppercase flex items-center justify-center gap-2">
                         <Lock className="w-5 h-5 text-yellow-400" /> Open Shift
                     </h2>
-                    <p className="text-slate-400 text-xs mt-1">Select branch and enter opening float</p>
+                    <p className="text-slate-400 text-xs mt-1">Select branch and enter opening float details</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row min-h-[480px]">
+                    {/* Left Form: Main Details & Supervisor Auth */}
+                    <div className="flex-1 p-6 space-y-4 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-200">
+                        <div className="space-y-4">
+                            {/* Branch Selection */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
+                                    <Store className="w-3 h-3 text-slate-500" /> Select Selling Branch
+                                </label>
+                                <select
+                                    value={selectedBranchId}
+                                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                                    disabled={isLoading}
+                                    className="w-full border border-slate-200 rounded px-3 py-2 text-sm font-bold text-slate-700 bg-white focus:outline-none focus:border-blue-400"
+                                >
+                                    <option value="" disabled>--- SELECT BRANCH ---</option>
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.location ? `${b.name} (${b.location})` : b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {/* Branch Selection */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                            <Store className="w-3 h-3" /> Select Selling Branch
-                        </label>
-                        <select
-                            value={selectedBranchId}
-                            onChange={(e) => setSelectedBranchId(e.target.value)}
-                            disabled={isLoading}
-                            className="w-full border border-slate-200 rounded px-3 py-2 text-sm font-bold text-slate-700 bg-white focus:outline-none focus:border-blue-400"
-                        >
-                            <option value="" disabled>--- SELECT BRANCH ---</option>
-                            {branches.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {b.location ? `${b.name} (${b.location})` : b.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                            {/* Cashier Display (Read Only) */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cashier</label>
+                                <div className="flex items-center border border-slate-200 rounded bg-slate-100 px-3 py-2">
+                                    <User className="w-4 h-4 text-slate-500 mr-2" />
+                                    <input
+                                        type="text"
+                                        disabled
+                                        value={currentUser.name}
+                                        className="bg-transparent w-full text-sm font-bold text-slate-700 focus:outline-none uppercase cursor-not-allowed"
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Cashier Display (Read Only) */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cashier</label>
-                        <div className="flex items-center border border-slate-200 rounded bg-slate-100 px-3 py-2">
-                            <User className="w-4 h-4 text-slate-500 mr-2" />
-                            <input
-                                type="text"
-                                disabled
-                                value={currentUser.name}
-                                className="bg-transparent w-full text-sm font-bold text-slate-700 focus:outline-none uppercase cursor-not-allowed"
-                            />
+                            {/* Amount Input */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Opening Float Amount</label>
+                                <div className="flex items-center border border-blue-300 rounded bg-white px-3 py-2 shadow-sm">
+                                    <span className="text-slate-400 font-mono mr-2">LKR</span>
+                                    <input
+                                        autoFocus
+                                        type="number"
+                                        step="0.01"
+                                        value={amount}
+                                        onChange={e => setAmount(e.target.value)}
+                                        disabled={isLoading || totalFromDenominations > 0}
+                                        className="bg-transparent w-full text-lg font-mono font-bold text-slate-900 focus:outline-none disabled:text-slate-500"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                {totalFromDenominations > 0 && (
+                                    <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">
+                                        Amount locked to Denomination Calculator total.
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Supervisor Auth */}
+                            <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
+                                <p className="text-[10px] font-bold text-yellow-800 uppercase mb-2 flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" /> Supervisor Approval Required
+                                </p>
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={supUser}
+                                        onChange={(e) => setSupUser(e.target.value)}
+                                        disabled={isLoading}
+                                        className="w-full border border-yellow-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 bg-white"
+                                        placeholder="Supervisor Username"
+                                    />
+                                    <input
+                                        type="password"
+                                        value={supPass}
+                                        onChange={(e) => setSupPass(e.target.value)}
+                                        disabled={isLoading}
+                                        className="w-full border border-yellow-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 bg-white"
+                                        placeholder="Supervisor Password"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="space-y-2 pt-4">
+                            <button
+                                type="submit"
+                                disabled={isLoading || !currentUser.id}
+                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold py-3 rounded-lg shadow-md uppercase tracking-wider text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    "Approve & Open Shift"
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => window.location.href = '/login'}
+                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-lg border border-slate-300 uppercase tracking-wider text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <LogOut className="w-4 h-4" /> Exit
+                            </button>
                         </div>
                     </div>
 
-                    {/* Amount Input */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Opening Float Amount</label>
-                        <div className="flex items-center border border-blue-300 rounded bg-white px-3 py-2 shadow-sm">
-                            <span className="text-slate-400 font-mono mr-2">LKR</span>
-                            <input
-                                autoFocus
-                                type="number"
-                                step="0.01"
-                                value={amount}
-                                onChange={e => {
-                                    setAmount(e.target.value);
-                                    if (showDenominations) setCounts({});
-                                }}
-                                disabled={isLoading || showDenominations}
-                                className="bg-transparent w-full text-lg font-mono font-bold text-slate-900 focus:outline-none disabled:text-slate-600"
-                                placeholder="0.00"
-                            />
-                        </div>
-                    </div>
+                    {/* Right Panel: Cash Notes & Coins Counter */}
+                    <div className="w-full md:w-[420px] bg-slate-50 p-6 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Banknote className="w-4 h-4 text-emerald-600" /> Denomination Calculator
+                                </h3>
+                                {totalFromDenominations > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setCounts({});
+                                            setAmount("");
+                                        }}
+                                        className="text-xs text-red-500 hover:text-red-700 font-semibold transition-colors"
+                                    >
+                                        Clear Calculator
+                                    </button>
+                                )}
+                            </div>
 
-                    {/* Denomination Toggle */}
-                    <button
-                        type="button"
-                        onClick={() => setShowDenominations(!showDenominations)}
-                        className="w-full flex items-center justify-between text-xs text-slate-500 hover:text-slate-700 py-1"
-                    >
-                        <span className="flex items-center gap-1">
-                            <Banknote className="w-3 h-3" />
-                            Count by Denomination
-                        </span>
-                        {showDenominations ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-
-                    {/* Denomination Grid */}
-                    {showDenominations && (
-                        <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 space-y-2 max-h-48 overflow-y-auto custom-scroll">
-                            <div className="grid grid-cols-2 gap-2">
-                                {DENOMINATIONS.map(denom => (
-                                    <div key={denom} className="flex items-center gap-2 bg-white border border-slate-200 rounded px-2 py-1">
-                                        <span className="w-12 text-right font-mono text-sm font-bold text-slate-700">{denom}</span>
-                                        <span className="text-slate-400 text-xs">x</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            className="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center font-mono text-sm focus:outline-none focus:border-blue-400 w-16"
-                                            placeholder="0"
-                                            value={counts[denom] || ""}
-                                            onChange={(e) => handleCountChange(denom, e.target.value)}
-                                            onFocus={(e) => e.target.select()}
-                                        />
-                                        <span className="text-xs text-slate-400 w-16 text-right font-mono">
-                                            = {(denom * (counts[denom] || 0)).toLocaleString()}
-                                        </span>
+                            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 custom-scroll">
+                                {/* Banknotes Section */}
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Banknotes</h4>
+                                    <div className="space-y-1.5">
+                                        {NOTES.map(denom => renderDenomRow(denom))}
                                     </div>
-                                ))}
-                            </div>
-                            <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
-                                <span className="text-xs font-bold text-slate-600 uppercase">Total</span>
-                                <span className="font-mono font-bold text-lg text-green-700">
-                                    LKR {totalFromDenominations.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </span>
+                                </div>
+
+                                {/* Coins Section */}
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Coins</h4>
+                                    <div className="space-y-1.5">
+                                        {COINS.map(denom => renderDenomRow(denom))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    )}
 
-                    <div className="h-px bg-slate-200 my-2"></div>
-
-                    {/* Supervisor Auth */}
-                    <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
-                        <p className="text-[10px] font-bold text-yellow-800 uppercase mb-2 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Supervisor Approval Required
-                        </p>
-                        <div className="space-y-2">
-                            <input
-                                type="text"
-                                value={supUser}
-                                onChange={(e) => setSupUser(e.target.value)}
-                                disabled={isLoading}
-                                className="w-full border border-yellow-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                                placeholder="Supervisor Username"
-                            />
-                            <input
-                                type="password"
-                                value={supPass}
-                                onChange={(e) => setSupPass(e.target.value)}
-                                disabled={isLoading}
-                                className="w-full border border-yellow-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                                placeholder="Supervisor Password"
-                            />
+                        {/* Calculated Total Section */}
+                        <div className="border-t border-slate-200 pt-4 mt-4 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-600 uppercase">Calculator Total</span>
+                            <span className="font-mono font-bold text-lg text-emerald-700">
+                                LKR {totalFromDenominations.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
                         </div>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={isLoading || !currentUser.id}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold py-3 rounded-lg shadow-md uppercase tracking-wider text-sm transition-all flex items-center justify-center gap-2"
-                    >
-                        {isLoading ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                Verifying...
-                            </>
-                        ) : (
-                            "Approve & Open Shift"
-                        )}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => window.location.href = '/login'}
-                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-lg border border-slate-300 uppercase tracking-wider text-sm transition-all flex items-center justify-center gap-2"
-                    >
-                        <LogOut className="w-4 h-4" /> Exit
-                    </button>
                 </form>
             </div>
         </div>
