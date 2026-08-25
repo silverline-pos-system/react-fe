@@ -7,6 +7,7 @@ import ExpiryWidget from "../components/ExpiryWidget";
 
 import { useApprovals, useDashboardStats, useLoyaltyStats } from "../hooks/managerQueries";
 import { useBranch } from "@/context/BranchContext";
+import { QueryState } from "@/shared/components";
 
 export default function Dashboard() {
   const { branches } = useBranch();
@@ -40,16 +41,19 @@ export default function Dashboard() {
     { title: 'Pending Approvals', value: pendingCount, icon: 'pending', tone: pendingCount > 0 ? 'warning' : 'success' },
   ];
 
-  if (error) {
-    return (
-      <div className="space-y-5">
-        <h1 className="text-xl font-extrabold">Company Manager Dashboard</h1>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  const refetchKpis = () => {
+    statsQuery.refetch();
+    approvalsQuery.refetch();
+    loyaltyQuery.refetch();
+  };
+
+  const kpiSkeleton = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-2xl border border-slate-200"></div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -62,18 +66,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-2xl border border-slate-200"></div>
-          ))
-        ) : (
-          kpiCards.map((s, i) => (
+      {/* KPI cards. A stats failure shows an inline retry instead of blanking the whole page. */}
+      <QueryState
+        isLoading={loading}
+        isError={!!error}
+        onRetry={refetchKpis}
+        loading={kpiSkeleton}
+        errorMessage="Failed to load dashboard KPIs."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpiCards.map((s, i) => (
             <StatCard key={i} title={s.title} value={s.value} icon={s.icon} tone={s.tone} />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      </QueryState>
 
       {/* Main Content Area */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
