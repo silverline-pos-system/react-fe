@@ -38,7 +38,6 @@ export default function ControlPanel({
     if (!inputBuffer || inputBuffer.trim().length < 2) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSuggestions(false);
       return;
     }

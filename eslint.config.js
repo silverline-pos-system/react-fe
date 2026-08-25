@@ -27,7 +27,12 @@ export default defineConfig([
       // (no-undef, no-restricted-imports). The rules below are real code-health debt but do not
       // break the app, so they are warnings for now to keep `npm run lint` actionable as a gate.
       // They should be burned down in a dedicated cleanup pass and re-escalated to error.
-      'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': ['warn', {
+        varsIgnorePattern: '^[A-Z_]',      // components / constants intentionally kept
+        argsIgnorePattern: '^[A-Z_]',      // passthrough props destructured as `icon: Icon`
+        ignoreRestSiblings: true,          // `const { omitMe, ...rest } = x` is not dead code
+        caughtErrors: 'none',              // `catch (e)` without using e is fine
+      }],
       'no-useless-catch': 'warn',
       'no-empty': 'warn',
       'react-hooks/exhaustive-deps': 'warn',

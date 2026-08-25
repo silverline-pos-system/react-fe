@@ -23,14 +23,12 @@ export function NotificationProvider({ children }) {
         }));
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setNotifications(list);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUnreadCount(parsed.unread || 0);
       } catch (e) {
         console.error("Failed to load notifications", e);
       }
     }
     // Mark as initialized AFTER loading
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialized(true);
   }, []);
 
