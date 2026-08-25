@@ -2,18 +2,17 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { API_V1 } from '@/lib/config';
 import { useClock } from '@/features/pos/hooks/useClock';
+import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import { posService } from '@/features/pos/services/posService';
 import { authService } from '@/features/auth/services/authService';
-import { poService } from '@/features/procurement/services/poService';
 import { servicesService } from '@/shared/services/servicesService';
-import { getApprovals } from '@/features/manager/services/managerService';
 import { NotificationProvider, useNotification } from '@/features/pos/context/NotificationContext';
 import NotificationPanel from '@/features/pos/components/NotificationPanel';
-import { printReceiptPDF, printShiftSummary, printPayInOutReceipt } from '@/features/pos/utils/receiptPrinter';
+import { printReceiptPDF, printShiftSummary } from '@/features/pos/utils/receiptPrinter';
 import { useFeatures } from '@/context/FeatureContext';
 import { useSystemName } from '@/context/SystemNameContext';
 import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
@@ -156,22 +155,10 @@ function POSContent() {
     const [pendingSerialIndex, setPendingSerialIndex] = useState(null);
     const [serialModalOpen, setSerialModalOpen] = useState(false);
 
+    // Supplier-payout modal toggles (UI only). Data + logic live in useSupplierPayouts.
     const [showSupplierPaymentModal, setShowSupplierPaymentModal] = useState(false);
-    const [supplierPaymentCount, setSupplierPaymentCount] = useState(0);
-    const [approvedPayouts, setApprovedPayouts] = useState([]);
-    const [rejectedPayouts, setRejectedPayouts] = useState([]);
     const [showApprovedPayoutModal, setShowApprovedPayoutModal] = useState(false);
     const [showRejectedPayoutModal, setShowRejectedPayoutModal] = useState(false);
-    const [processingPayoutId, setProcessingPayoutId] = useState(null);
-    const [processedPayoutIds, setProcessedPayoutIds] = useState(() => {
-        try {
-            const raw = localStorage.getItem('pos_processed_paid_out');
-            const parsed = raw ? JSON.parse(raw) : [];
-            return new Set(Array.isArray(parsed) ? parsed : []);
-        } catch {
-            return new Set();
-        }
-    });
 
     const getServiceOverlayKey = useCallback((shiftId) => `pos_service_overlay_shift_${shiftId}`, []);
 
@@ -258,6 +245,16 @@ function POSContent() {
     const inputRef = useRef(null);
     const { addNotification, setIsOpen, unreadCount } = useNotification();
 
+    // Supplier-payout notifications (self-contained feature; data + polling + receipt printing).
+    const {
+        supplierPaymentCount,
+        approvedPayouts,
+        rejectedPayouts,
+        processingPayoutId,
+        handleProcessApprovedPayout,
+        fetchSupplierPaymentCount,
+    } = useSupplierPayouts({ session, branchInfo, addNotification });
+
     // Fetch branch info for header display
     useEffect(() => {
         let isMounted = true;
@@ -286,131 +283,6 @@ function POSContent() {
             isMounted = false;
         };
     }, [branchId]);
-
-    // Fetch Supplier Payment Request count
-    const fetchSupplierPaymentCount = useCallback(async () => {
-        try {
-            const res = await poService.getPOsByStatus('TRANSFERRED_TO_CASHIER');
-            const rawData = res.data?.data || res.data || [];
-            let poList = [];
-            if (Array.isArray(rawData)) {
-                poList = rawData;
-            } else if (rawData.content && Array.isArray(rawData.content)) {
-                poList = rawData.content;
-            } else if (rawData.data && Array.isArray(rawData.data)) {
-                poList = rawData.data;
-            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
-                poList = rawData.data.content;
-            }
-            setSupplierPaymentCount(poList.length);
-        } catch (err) {
-            if (err?.response?.status !== 403) {
-                console.error('Failed to fetch supplier payment count:', err);
-            }
-        }
-    }, []);
-
-    // Initial load effects
-    useEffect(() => {
-        fetchSupplierPaymentCount();
-        const interval = setInterval(() => {
-            fetchSupplierPaymentCount();
-        }, 60000); // Check every minute
-        return () => clearInterval(interval);
-    }, [fetchSupplierPaymentCount]);
-
-    const getApprovalRows = useCallback((payload) => {
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload?.data?.data)) return payload.data.data;
-        if (Array.isArray(payload?.rows)) return payload.rows;
-        return [];
-    }, []);
-
-    const isApprovedPaidOutApproval = useCallback((row) => {
-        const status = String(row?.status || '').toUpperCase();
-        const category = String(row?.category || '').toUpperCase();
-        const type = String(row?.type || row?.flowType || '').toUpperCase();
-        const text = `${row?.reason || ''} ${row?.description || ''} ${row?.notes || ''}`.toUpperCase();
-        const isPaidOutLike =
-            category.includes('PAID_OUT') ||
-            category.includes('CASH_FLOW_PAID_OUT') ||
-            type.includes('PAID_OUT') ||
-            text.includes('PAID_OUT') ||
-            text.includes('PAYOUT') ||
-            text.includes('CASH OUT') ||
-            text.includes('CASH_OUT');
-        return status === 'APPROVED' && isPaidOutLike;
-    }, []);
-
-    const isRejectedPaidOutApproval = useCallback((row) => {
-        const status = String(row?.status || '').toUpperCase();
-        const category = String(row?.category || '').toUpperCase();
-        const type = String(row?.type || row?.flowType || '').toUpperCase();
-        const text = `${row?.reason || ''} ${row?.description || ''} ${row?.notes || ''}`.toUpperCase();
-        const isPaidOutLike =
-            category.includes('PAID_OUT') ||
-            category.includes('CASH_FLOW_PAID_OUT') ||
-            type.includes('PAID_OUT') ||
-            text.includes('PAID_OUT') ||
-            text.includes('PAYOUT') ||
-            text.includes('CASH OUT') ||
-            text.includes('CASH_OUT');
-        return status === 'REJECTED' && isPaidOutLike;
-    }, []);
-
-    const fetchApprovedPayouts = useCallback(async () => {
-        try {
-            const response = await getApprovals();
-            const rows = getApprovalRows(response);
-            const list = rows.filter(isApprovedPaidOutApproval);
-            setApprovedPayouts(list.filter((r) => !processedPayoutIds.has(r.id)));
-            const rejectedList = rows.filter(isRejectedPaidOutApproval);
-            setRejectedPayouts(rejectedList);
-        } catch (err) {
-            if (err?.response?.status !== 403) {
-                console.error('Failed to fetch approved payouts:', err);
-            }
-        }
-    }, [getApprovalRows, isApprovedPaidOutApproval, isRejectedPaidOutApproval, processedPayoutIds]);
-
-    useEffect(() => {
-        fetchApprovedPayouts();
-        const interval = setInterval(fetchApprovedPayouts, 60000);
-        return () => clearInterval(interval);
-    }, [fetchApprovedPayouts]);
-
-    const handleProcessApprovedPayout = async (row) => {
-        try {
-            setProcessingPayoutId(row.id);
-            const amount = Number(row.amount || 0);
-            const reasonText = String(row.reason || row.description || row.notes || 'Approved payout').replace(/\[TAKEN_BY_MANAGER\]\s*/gi, '').trim();
-
-            await printPayInOutReceipt({
-                type: 'PAID_OUT',
-                amount,
-                reason: reasonText,
-                referenceNo: row.referenceNo || row.id,
-                cashierName: session.cashier,
-                branchInfo,
-            });
-
-            setProcessedPayoutIds((prev) => {
-                const next = new Set(prev);
-                next.add(row.id);
-                localStorage.setItem('pos_processed_paid_out', JSON.stringify(Array.from(next)));
-                return next;
-            });
-
-            setApprovedPayouts((prev) => prev.filter((item) => item.id !== row.id));
-            addNotification('success', 'Payout Completed', `Paid-out receipt printed for approval #${row.id}.`);
-        } catch (err) {
-            console.error('Failed to process approved payout:', err);
-            addNotification('error', 'Payout Failed', err?.message || 'Failed to print payout receipt.');
-        } finally {
-            setProcessingPayoutId(null);
-        }
-    };
 
     useEffect(() => {
         if (selectedCartIndex === null || selectedCartIndex === undefined) return;
