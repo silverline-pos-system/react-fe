@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_V1 } from '@/lib/config';
 
-const API_URL = "http://localhost:8080/api/v1/dispatch-payments";
+const API_URL = `${API_V1}/dispatch-payments`;
 
 const api = axios.create({
     baseURL: API_URL,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_V1 } from '@/lib/config';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
@@ -585,8 +586,6 @@ function POSContent() {
                 payload.denominations = denominations;
             }
 
-            console.log("Opening Shift - Payload:", JSON.stringify(payload, null, 2));
-
             const res = await posService.openShift(payload);
             const data = res.data?.data || res.data;
 
@@ -707,7 +706,7 @@ function POSContent() {
             try {
                 const userObj = JSON.parse(localStorage.getItem('user') || '{}');
                 const token = localStorage.getItem('token');
-                await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+                await fetch(`${API_V1}/manager/activity/log`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -1156,7 +1155,6 @@ function POSContent() {
                             ...item.dtvData,
                             saleId: data?.saleId || data?.id || null
                         };
-                        console.log("Submitting deferred DTV Service request:", dtvPayload);
                         await servicesService.createDtvService(dtvPayload);
                     } catch (dtvErr) {
                         console.error('Failed to submit deferred DTV request:', dtvErr);

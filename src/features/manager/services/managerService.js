@@ -1,8 +1,9 @@
 import api from "@/lib/api";
+import { API_V1 } from "@/lib/config";
 
-const MANAGER_API_BASE = "http://localhost:8080/api/v1/manager";
-const ACCOUNTING_API_BASE = "http://localhost:8080/api/v1/accounting";
-const REPORTS_API_BASE = "http://localhost:8080/api/v1/reports";
+const MANAGER_API_BASE = `${API_V1}/manager`;
+const ACCOUNTING_API_BASE = `${API_V1}/accounting`;
+const REPORTS_API_BASE = `${API_V1}/reports`;
 
 function getMyBranchId() {
   try {

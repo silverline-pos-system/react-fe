@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { API_V1 } from "@/lib/config";
 import { useState, useEffect } from "react";
 import { LogOut, LayoutDashboard, Users, Menu } from "lucide-react";
 import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
@@ -35,7 +36,7 @@ export default function Topbar({ onMenuClick = () => { } }) {
       const userObj = JSON.parse(localStorage.getItem('user') || '{}');
       const selectedBranchId = localStorage.getItem('selectedBranchId');
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+      await fetch(`${API_V1}/manager/activity/log`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ export default function Topbar({ onMenuClick = () => { } }) {
             className="group flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-emerald-50 rounded-lg text-sm font-medium transition-all duration-300 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:border hover:border-emerald-200"
           >
             <Users size={16} className="text-slate-600 group-hover:text-emerald-600 transition-colors" />
-            <span className="hidden sm:inline text-slate-700 group-hover:text-emerald-700 transition-colors">Manager Dashboard</span>
+            <span className="hidden sm:inline text-slate-700 group-hover:text-emerald-700 transition-colors">Enterprise Console</span>
           </button>
 
           <button

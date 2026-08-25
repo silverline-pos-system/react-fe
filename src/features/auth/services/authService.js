@@ -1,5 +1,7 @@
-// Define your Backend URL
-const API_BASE_URL = "http://localhost:8080/api/v1"; //example
+import { API_V1 } from '@/lib/config';
+
+// Backend base URL comes from VITE_API_URL (see src/lib/config.js).
+const API_BASE_URL = API_V1;
 
 export const authService = {
 

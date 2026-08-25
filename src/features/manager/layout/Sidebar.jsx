@@ -151,6 +151,7 @@ export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} })
           </div>
           <div className="mt-2 space-y-1">
             <NavItemLink to="/manager/expenses" icon={Wallet} label="Expenses" onNavigate={onNavigate} />
+            <NavItemLink to="/manager/supplier-payments" icon={CreditCard} label="Supplier Payments" onNavigate={onNavigate} />
           </div>
         </div>
       </nav>

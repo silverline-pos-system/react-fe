@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_V1 } from '@/lib/config';
 import { useNavigate } from 'react-router-dom';
 import { useSystemName } from '@/context/SystemNameContext';
 import {
@@ -163,7 +164,7 @@ const InventorySystemContent = () => {
                 const userObj = JSON.parse(localStorage.getItem('user') || '{}');
                 const selectedBranchId = localStorage.getItem('selectedBranchId');
                 const token = localStorage.getItem('token');
-                await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+                await fetch(`${API_V1}/manager/activity/log`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',

@@ -543,7 +543,7 @@ const StockTransferCreateScreen = ({
                         onPageChange={setHistoryPage}
                         totalItems={completedRequests.length}
                         itemsPerPage={historyPerPage}
-                        setItemsPerPage={setItemsPerPage}
+                        setItemsPerPage={setHistoryPerPage}
                     />
                 )}
             </div>

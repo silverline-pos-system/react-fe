@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_V1 } from '@/lib/config';
 
-const API_URL = "http://localhost:8080/api/v1/pos";
+const API_URL = `${API_V1}/pos`;
 
 const api = axios.create({
     baseURL: API_URL,
@@ -46,7 +47,6 @@ export const posService = {
             payload.denominations = data.denominations;
         }
 
-        console.log("POS Service - Opening Shift:", payload);
         return api.post('/shift/open', payload);
     },
 
@@ -213,7 +213,6 @@ export const posService = {
             }))
         };
 
-        console.log("Submitting sale:", JSON.stringify(payload, null, 2));
         return api.post('/orders', payload);
     },
 

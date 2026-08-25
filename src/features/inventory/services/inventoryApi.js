@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_ORIGIN } from '@/lib/config';
 
-const BASE_URL = 'http://localhost:8080/api/inventory';
+const BASE_URL = `${API_ORIGIN}/api/inventory`;
 
 const inventoryApi = axios.create({
     baseURL: BASE_URL,
