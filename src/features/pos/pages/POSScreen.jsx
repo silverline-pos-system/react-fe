@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_V1 } from '@/lib/config';
 import { useClock } from '@/features/pos/hooks/useClock';
 import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
+import { useCart } from '@/features/pos/hooks/useCart';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
@@ -63,10 +64,14 @@ function POSContent() {
         shiftId: null,
         userId: null
     });
-    const [cart, setCart] = useState(() => {
-        const savedCart = localStorage.getItem('pos_cart_draft');
-        return savedCart ? JSON.parse(savedCart) : [];
-    });
+    // Cart state container (line items, bill discount, selection indices, derived totals).
+    const {
+        cart, setCart,
+        cartTotals,
+        billDiscount, setBillDiscount,
+        editingCartIndex, setEditingCartIndex,
+        selectedCartIndex, setSelectedCartIndex,
+    } = useCart();
     const [customer, setCustomer] = useState(() => {
         const savedCustomer = localStorage.getItem('pos_customer_draft');
         return savedCustomer ? JSON.parse(savedCustomer) : null;
@@ -144,13 +149,10 @@ function POSContent() {
 
     // Track active sale ID for updates (Held/Recall flow)
     const [currentSaleId, setCurrentSaleId] = useState(null);
-    const [editingCartIndex, setEditingCartIndex] = useState(null);
-    const [selectedCartIndex, setSelectedCartIndex] = useState(null);
     const [quickGridRefresh, setQuickGridRefresh] = useState(0);
     const time = useClock();
     const [cashierSummary, setCashierSummary] = useState(null);
     const [cashierSummaryLoading, setCashierSummaryLoading] = useState(false);
-    const [billDiscount, setBillDiscount] = useState(0); // Bill-level discount amount
     const [pendingMultiPriceProduct, setPendingMultiPriceProduct] = useState(null);
     const [pendingSerialIndex, setPendingSerialIndex] = useState(null);
     const [serialModalOpen, setSerialModalOpen] = useState(false);
@@ -208,25 +210,6 @@ function POSContent() {
     }, [getServiceOverlay]);
 
     // Calculate cart totals including discounts
-    const cartTotals = useMemo(() => {
-        const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const itemDiscountAmount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
-        // Tax/VAT removed: no tax is applied to sales.
-        const taxAmount = 0;
-        const totalDiscount = itemDiscountAmount + billDiscount;
-        const netTotal = grossTotal - totalDiscount;
-
-        return {
-            grossTotal,
-            itemDiscountAmount,
-            billDiscountAmount: billDiscount,
-            totalDiscount,
-            taxAmount,
-            netTotal,
-            itemCount: cart.length,
-            totalQty: cart.reduce((sum, item) => sum + item.qty, 0)
-        };
-    }, [cart, billDiscount]);
 
     // Helper to refresh shift totals
     const fetchShiftTotals = async () => {
@@ -284,12 +267,6 @@ function POSContent() {
         };
     }, [branchId]);
 
-    useEffect(() => {
-        if (selectedCartIndex === null || selectedCartIndex === undefined) return;
-        if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) {
-            setSelectedCartIndex(null);
-        }
-    }, [cart, selectedCartIndex]);
 
     // Check for active shift on mount (Persistence)
     const initRef = useRef(false);
