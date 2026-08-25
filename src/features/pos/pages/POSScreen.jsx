@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_V1 } from '@/lib/config';
+import { useClock } from '@/features/pos/hooks/useClock';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
@@ -147,7 +148,7 @@ function POSContent() {
     const [editingCartIndex, setEditingCartIndex] = useState(null);
     const [selectedCartIndex, setSelectedCartIndex] = useState(null);
     const [quickGridRefresh, setQuickGridRefresh] = useState(0);
-    const [time, setTime] = useState(new Date());
+    const time = useClock();
     const [cashierSummary, setCashierSummary] = useState(null);
     const [cashierSummaryLoading, setCashierSummaryLoading] = useState(false);
     const [billDiscount, setBillDiscount] = useState(0); // Bill-level discount amount
@@ -285,12 +286,6 @@ function POSContent() {
             isMounted = false;
         };
     }, [branchId]);
-
-    // Clock
-    useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
 
     // Fetch Supplier Payment Request count
     const fetchSupplierPaymentCount = useCallback(async () => {
