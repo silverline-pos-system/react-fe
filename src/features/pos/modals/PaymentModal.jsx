@@ -29,11 +29,9 @@ export default function PaymentModal({ total, cart = [], invoiceId, cashierName,
         if (totals) return totals;
         const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const totalDiscount = cart.reduce((sum, item) => sum + (item.discount || 0), 0);
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - (item.discount || 0);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
-        const netTotal = grossTotal - totalDiscount + taxAmount;
+        // Tax/VAT removed: no tax is applied to sales.
+        const taxAmount = 0;
+        const netTotal = grossTotal - totalDiscount;
         return { grossTotal, totalDiscount, taxAmount, netTotal };
     }, [cart, totals]);
 

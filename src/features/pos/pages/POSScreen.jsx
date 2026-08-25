@@ -223,12 +223,10 @@ function POSContent() {
     const cartTotals = useMemo(() => {
         const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const itemDiscountAmount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - ((item.discount || 0) * item.qty);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
+        // Tax/VAT removed: no tax is applied to sales.
+        const taxAmount = 0;
         const totalDiscount = itemDiscountAmount + billDiscount;
-        const netTotal = grossTotal - totalDiscount + taxAmount;
+        const netTotal = grossTotal - totalDiscount;
 
         return {
             grossTotal,
@@ -1050,6 +1048,10 @@ function POSContent() {
         inputRef.current?.focus();
     };
 
+    // Stable idempotency key for one checkout attempt. A retried submit reuses it so the backend
+    // returns the original sale instead of creating a duplicate; cleared on success.
+    const checkoutKeyRef = useRef(null);
+
     const openPaymentModal = (mode = 'CASH') => {
         if (cart.length === 0) {
             addNotification('warning', 'Empty Cart', 'Add items first.');
@@ -1064,6 +1066,11 @@ function POSContent() {
             addNotification('warning', 'Insufficient Items', 'Please add replacement items to cover the refund amount before checkout.');
             return;
         }
+        if (!checkoutKeyRef.current) {
+            checkoutKeyRef.current = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
         setListConfig({ mode });
         setActiveModal('PAYMENT');
     };
@@ -1073,11 +1080,9 @@ function POSContent() {
         const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const itemDiscount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
         const totalDiscount = itemDiscount + billDiscount;
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - ((item.discount || 0) * item.qty);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
-        const netTotal = grossTotal - totalDiscount + taxAmount;
+        // Tax/VAT removed: no tax is applied to sales.
+        const taxAmount = 0;
+        const netTotal = grossTotal - totalDiscount;
 
         const productItems = cart.filter(item => !item.isService && !item.dtvData && !item.repairData && !item.isReturn);
         const mappedItems = productItems.map(item => ({
@@ -1086,8 +1091,7 @@ function POSContent() {
             batchId: item.batchId || null,
             qty: item.qty,
             unitPrice: item.price,
-            discount: item.discount || 0,
-            taxRate: item.taxRate || 0
+            discount: item.discount || 0
         }));
 
         const paymentList = paymentDetails.payments.map(p => ({
@@ -1121,6 +1125,7 @@ function POSContent() {
             netTotal: netTotal,
             paidAmount: paymentDetails.totalPaid,
             changeAmount: paymentDetails.changeAmount || 0,
+            idempotencyKey: checkoutKeyRef.current,
             saleType: isServiceOnly ? "SERVICE" : "RETAIL",
             notes: isServiceOnly
                 ? `Service payment: ${cart.map(i => i.repairData?.repairNo || i.dtvData?.refNo || (i.type === 'RELOAD' ? i.name : null) || (i.isService ? i.name : null)).filter(Boolean).join(', ')}`
@@ -1256,6 +1261,7 @@ function POSContent() {
             setCurrentSaleId(null);
             setBillDiscount(0);
             setActiveModal(null);
+            checkoutKeyRef.current = null; // fresh key for the next sale
 
             setTimeout(() => { setInvoiceId("INV-READY"); }, 3000);
         } catch (err) {
