@@ -1,80 +1,44 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import StatCard from "../components/StatCard";
 import TopSellingTable from "../components/TopSellingTable";
 import StaffWidget from "../components/StaffWidget";
 import StockAlertsWidget from "../components/StockAlertsWidget";
 import ExpiryWidget from "../components/ExpiryWidget";
 
-import { getApprovals, getDashboardStats, getStaffSummary, getLoyaltyStats } from "../services/managerService";
+import { useApprovals, useDashboardStats, useLoyaltyStats } from "../hooks/managerQueries";
 import { useBranch } from "@/context/BranchContext";
 
 export default function Dashboard() {
   const { branches } = useBranch();
-  const [kpiCards, setKpiCards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  // Cached/deduped server state. The approvals query is shared with the sidebar badge, so the
+  // dashboard no longer re-fetches approvals independently.
+  const statsQuery = useDashboardStats();
+  const approvalsQuery = useApprovals('PENDING');
+  const loyaltyQuery = useLoyaltyStats();
 
   useEffect(() => {
     localStorage.removeItem('selectedBranchId');
+  }, []);
 
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const loading = statsQuery.isLoading || approvalsQuery.isLoading || loyaltyQuery.isLoading;
+  const error = statsQuery.isError || approvalsQuery.isError || loyaltyQuery.isError
+    ? "Failed to load dashboard data. Please try again."
+    : null;
 
-        const [statsResponse, approvalsResponse, _staffResponse, loyaltyResponse] = await Promise.all([
-          getDashboardStats(),
-          getApprovals(),
-          getStaffSummary(),
-          getLoyaltyStats().catch(() => ({ totalCustomers: 0, totalPoints: 0 }))
-        ]);
+  const statsArray = statsQuery.data || [];
+  const salesStat = statsArray.find((s) => s.title?.includes("Sales")) || { value: "LKR 0" };
+  const pendingCount = (approvalsQuery.data || []).filter(
+    (r) => (r.status || "").toUpperCase() === "PENDING",
+  ).length;
+  const customerCount = loyaltyQuery.data?.totalCustomers || 0;
 
-        const statsArray = Array.isArray(statsResponse) ? statsResponse : [statsResponse];
-
-        const pendingCount = (Array.isArray(approvalsResponse) ? approvalsResponse : []).filter(
-          (r) => (r.status || "").toUpperCase() === "PENDING"
-        ).length;
-
-        const customerCount = loyaltyResponse?.totalCustomers || 0;
-
-        const salesStat = statsArray.find(s => s.title?.includes("Sales")) || { value: "LKR 0" };
-
-        setKpiCards([
-          {
-            title: 'Global Daily Revenue',
-            value: salesStat.value,
-            icon: 'revenue',
-            tone: 'primary',
-          },
-          {
-            title: 'Active Branches',
-            value: branches.length || 0,
-            icon: 'staff',
-            tone: 'secondary',
-          },
-          {
-            title: 'Registered Customers',
-            value: customerCount.toLocaleString(),
-            icon: 'users',
-            tone: 'success',
-          },
-          {
-            title: 'Pending Approvals',
-            value: pendingCount,
-            icon: 'pending',
-            tone: pendingCount > 0 ? 'warning' : 'success',
-          },
-        ]);
-      } catch (err) {
-        console.error("Error loading dashboard data:", err);
-        setError("Failed to load dashboard data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [branches.length]);
+  const kpiCards = [
+    { title: 'Global Daily Revenue', value: salesStat.value, icon: 'revenue', tone: 'primary' },
+    { title: 'Active Branches', value: branches.length || 0, icon: 'staff', tone: 'secondary' },
+    { title: 'Registered Customers', value: customerCount.toLocaleString(), icon: 'users', tone: 'success' },
+    { title: 'Pending Approvals', value: pendingCount, icon: 'pending', tone: pendingCount > 0 ? 'warning' : 'success' },
+  ];
 
   if (error) {
     return (
