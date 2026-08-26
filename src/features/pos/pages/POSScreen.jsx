@@ -5,6 +5,7 @@ import { useClock } from '@/features/pos/hooks/useClock';
 import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
 import { useCart } from '@/features/pos/hooks/useCart';
 import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
+import { buildSaleOrder } from '@/features/pos/utils/buildSaleOrder';
 import { useShift } from '@/features/pos/hooks/useShift';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
@@ -863,62 +864,13 @@ function POSContent() {
 
     // --- HANDLER: PROCESS PAYMENT ---
     const processPayment = async (paymentDetails) => {
-        const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const itemDiscount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
-        const totalDiscount = itemDiscount + billDiscount;
-        // Tax/VAT removed: no tax is applied to sales.
-        const taxAmount = 0;
-        const netTotal = grossTotal - totalDiscount;
-
-        const productItems = cart.filter(item => !item.isService && !item.dtvData && !item.repairData && !item.isReturn);
-        const mappedItems = productItems.map(item => ({
-            productId: item.id,
-            serialId: item.serialId || null,
-            batchId: item.batchId || null,
-            qty: item.qty,
-            unitPrice: item.price,
-            discount: item.discount || 0
-        }));
-
-        const paymentList = paymentDetails.payments.map(p => ({
-            paymentType: p.paymentType,
-            amount: p.amount,
-            referenceNo: p.referenceNo || null,
-            bankName: p.bankName || null,
-            cardLast4: p.cardLast4 || null
-        }));
-
-        const hasServiceItems = cart.some(item => item.isService || item.dtvData || item.repairData);
-        const isServiceOnly = mappedItems.length === 0 && hasServiceItems;
-
-        const serviceTypeTotals = cart.reduce((acc, item) => {
-            const line = Number(item.price || 0) * Number(item.qty || 1);
-            if (item.dtvData) acc.dtv += line;
-            else if (item.repairData) acc.repair += line;
-            else if (item.type === 'RELOAD') acc.reload += line;
-            return acc;
-        }, { dtv: 0, repair: 0, reload: 0 });
-
-        const orderData = {
-            saleId: currentSaleId,
-            branchId: branchId,
-            cashierId: session.userId,
-            customerId: customer ? customer.customerId || customer.id : null,
-            shiftId: session.shiftId,
-            grossTotal: grossTotal,
-            discount: totalDiscount,
-            taxAmount: taxAmount,
-            netTotal: netTotal,
-            paidAmount: paymentDetails.totalPaid,
-            changeAmount: paymentDetails.changeAmount || 0,
-            idempotencyKey: checkoutKeyRef.current,
-            saleType: isServiceOnly ? "SERVICE" : "RETAIL",
-            notes: isServiceOnly
-                ? `Service payment: ${cart.map(i => i.repairData?.repairNo || i.dtvData?.refNo || (i.type === 'RELOAD' ? i.name : null) || (i.isService ? i.name : null)).filter(Boolean).join(', ')}`
-                : "",
-            items: mappedItems,
-            payments: paymentList
-        };
+        // Pure payload build (totals, items, payments, service detection) is isolated + tested.
+        const { orderData, netTotal, isServiceOnly, serviceTypeTotals } = buildSaleOrder(
+            cart,
+            billDiscount,
+            { currentSaleId, branchId, session, customer, idempotencyKey: checkoutKeyRef.current },
+            paymentDetails,
+        );
 
         try {
             const res = await posService.submitOrder(orderData);
