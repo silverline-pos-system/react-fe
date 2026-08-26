@@ -4,6 +4,7 @@ import {
   getUserRegistrations,
   getDashboardStats,
   getLoyaltyStats,
+  getStaffSummary,
 } from '../services/managerService';
 import { poService } from '@/features/procurement/services/poService';
 
@@ -63,6 +64,20 @@ export function useLoyaltyStats(options = {}) {
   return useQuery({
     queryKey: ['manager', 'loyaltyStats'],
     queryFn: () => getLoyaltyStats().catch(() => ({ totalCustomers: 0, totalPoints: 0 })),
+    ...options,
+  });
+}
+
+export function useStaffSummary(branchId = undefined, options = {}) {
+  return useQuery({
+    queryKey: ['manager', 'staffSummary', branchId ?? 'MINE'],
+    queryFn: () => getStaffSummary(branchId),
+    // Hide super-admin/manager and rejected accounts, as the widget did.
+    select: (data) =>
+      (data || []).filter(
+        (s) => s.role !== 'SUPER_ADMIN' && s.role !== 'MANAGER' && s.status !== 'Rejected',
+      ),
+    refetchInterval: 15000,
     ...options,
   });
 }

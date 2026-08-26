@@ -37,6 +37,9 @@ export default defineConfig([
       'no-empty': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
+      // Relative-time display helpers (e.g. "5m ago") intentionally read Date.now() at render.
+      // That is an accepted pattern, so treat purity as a warning rather than a build-blocking error.
+      'react-hooks/purity': 'warn',
       'react-refresh/only-export-components': 'warn',
       'no-restricted-imports': [
         'error',

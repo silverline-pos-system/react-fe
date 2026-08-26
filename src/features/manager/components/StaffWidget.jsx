@@ -1,34 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
 import Badge from "./Badge";
-import { getStaffSummary } from "../services/managerService";
+import { useStaffSummary } from "../hooks/managerQueries";
 
 export default function StaffWidget({ branchId = undefined }) {
-  const [staff, setStaff] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  const fetchStaff = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const data = await getStaffSummary(branchId);
-      const filtered = (data || []).filter(s => s.role !== "SUPER_ADMIN" && s.role !== "MANAGER" && s.status !== "Rejected");
-      setStaff(filtered);
-      setError(null);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Error fetching staff summary:", err);
-      setError("Failed to load staff data");
-    } finally {
-      setLoading(false);
-    }
-  }, [branchId]);
-
-  useEffect(() => {
-    fetchStaff();
-    const interval = setInterval(() => fetchStaff(true), 15000);
-    return () => clearInterval(interval);
-  }, [fetchStaff]);
+  // Cached, deduped staff summary with the same 15s refresh (React Query handles the polling).
+  const { data: staff = [], isLoading: loading, isError, dataUpdatedAt } = useStaffSummary(branchId);
+  const error = isError ? "Failed to load staff data" : null;
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   const getStatusColor = (status) => {
     const s = (status || '').toLowerCase();
