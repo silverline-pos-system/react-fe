@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useBranch } from "@/context/BranchContext";
 import {
   DollarSign, TrendingUp, TrendingDown, ShoppingCart, Users,
@@ -258,35 +259,27 @@ export default function Sales() {
   const { selectedBranchId } = useBranch();
   const { systemName } = useSystemName();
   const reportSystemName = (systemName || "SmartRetail Pro").toUpperCase();
-  const [analytics, setAnalytics] = useState(null);
-  const [topProducts, setTopProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState("daily");
 
-  const fetchData = async () => {
-    try {
-      setRefreshing(true);
+  // Cached, deduped sales analytics + top products with the same 30s refresh.
+  const {
+    data,
+    isLoading: loading,
+    isFetching: refreshing,
+    refetch: fetchData,
+  } = useQuery({
+    queryKey: ['manager', 'salesAnalytics', period, selectedBranchId],
+    queryFn: async () => {
       const [analyticsData, productsData] = await Promise.all([
         getSalesAnalytics(period),
-        getTopSellingProducts(5)
+        getTopSellingProducts(5),
       ]);
-
-      setAnalytics(analyticsData);
-      setTopProducts(productsData || []);
-    } catch (err) {
-      console.error("Failed to load sales data", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [period, selectedBranchId]);
+      return { analytics: analyticsData, topProducts: productsData || [] };
+    },
+    refetchInterval: 30000,
+  });
+  const analytics = data?.analytics ?? null;
+  const topProducts = data?.topProducts ?? [];
 
   const exportData = () => {
     if (!analytics) return;
