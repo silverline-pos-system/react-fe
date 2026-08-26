@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBranch } from "@/context/BranchContext";
 import Badge from "../components/Badge";
-import { getApprovals, updateApprovalStatus, getApprovalHistoryPdf } from "../services/managerService";
+import { updateApprovalStatus, getApprovalHistoryPdf } from "../services/managerService";
+import { useApprovals } from "../hooks/managerQueries";
 import { CheckCircle, ArrowUpRight, ArrowDownLeft, ShieldCheck, ListFilter, History, Download, AlertTriangle, X } from 'lucide-react';
 
 const formatCategory = (cat) => {
@@ -86,22 +87,51 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, type = 'info
 }
 
 export default function Approvals() {
-  const [pending, setPending] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [summary, setSummary] = useState({
-    pendingCount: 0,
-    pendingAmount: 0,
-    managerTakenPayoutTotal: 0,
-    todayPayInTotal: 0,
-    todayPayoutTotal: 0,
-  });
+  // Approvals are fetched via React Query (cached, deduped). pending/history/summary are derived
+  // during render from the same data the old fetchApprovals produced.
+  const {
+    data: allApprovalsRaw = [],
+    isLoading: loading,
+    isError,
+    refetch: refetchApprovals,
+  } = useApprovals(null);
+  const error = isError ? "Failed to load approvals" : null;
+
+  const allRows = useMemo(
+    () => (allApprovalsRaw || []).filter((item) => item.category !== "USER_REGISTRATION"),
+    [allApprovalsRaw],
+  );
+  const pending = useMemo(
+    () => allRows.filter((r) => (r.status || "").toUpperCase() === "PENDING"),
+    [allRows],
+  );
+  const history = useMemo(
+    () => sortHistoryNewestFirst(allRows.filter((r) => (r.status || "").toUpperCase() !== "PENDING")),
+    [allRows],
+  );
+  const summary = useMemo(() => {
+    const todayApprovedRows = allRows
+      .filter((r) => (r.status || "").toUpperCase() === "APPROVED")
+      .filter(isToday);
+    return {
+      pendingCount: pending.length,
+      pendingAmount: pending.reduce((sum, r) => sum + Number(r.amount || 0), 0),
+      managerTakenPayoutTotal: allRows
+        .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT") && isManagerTakenPayout(r))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0),
+      todayPayInTotal: todayApprovedRows
+        .filter((r) => (r.category || "").toUpperCase().includes("PAID_IN"))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0),
+      todayPayoutTotal: todayApprovedRows
+        .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT"))
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0),
+    };
+  }, [allRows, pending]);
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState("ALL");
   const [historyStatusFilter, setHistoryStatusFilter] = useState("ALL");
   const [historySearch, setHistorySearch] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
   const historyPageSize = 10;
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
   const [exporting, setExporting] = useState(false);
 
@@ -161,50 +191,13 @@ export default function Approvals() {
 
   const { selectedBranchId } = useBranch();
 
+  // Refetch when the branch filter changes (preserves the previous behavior).
   useEffect(() => {
-    fetchApprovals();
-  }, [selectedBranchId]);
+    refetchApprovals();
+  }, [selectedBranchId, refetchApprovals]);
 
-  const fetchApprovals = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getApprovals();
-      const allRows = (data || []).filter(item => item.category !== "USER_REGISTRATION");
-
-      const pendingRows = allRows.filter((r) => (r.status || "").toUpperCase() === 'PENDING');
-      const historyRows = allRows.filter((r) => (r.status || "").toUpperCase() !== 'PENDING');
-
-      const approvedRows = allRows.filter((r) => (r.status || "").toUpperCase() === 'APPROVED');
-      const todayApprovedRows = approvedRows.filter(isToday);
-
-      const todayPayInTotal = todayApprovedRows
-        .filter((r) => (r.category || "").toUpperCase().includes("PAID_IN"))
-        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-
-      const todayPayoutTotal = todayApprovedRows
-        .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT"))
-        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-
-      setPending(pendingRows);
-      setHistory(sortHistoryNewestFirst(historyRows));
-      setSummary({
-        pendingCount: pendingRows.length,
-        pendingAmount: pendingRows.reduce((sum, r) => sum + Number(r.amount || 0), 0),
-        managerTakenPayoutTotal: allRows
-          .filter((r) => (r.category || "").toUpperCase().includes("PAID_OUT") && isManagerTakenPayout(r))
-          .reduce((sum, r) => sum + Number(r.amount || 0), 0),
-        todayPayInTotal,
-        todayPayoutTotal,
-      });
-
-    } catch (err) {
-      console.error("Error fetching approvals:", err);
-      setError("Failed to load approvals");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Kept name so existing callers (post-action + refresh buttons) are unchanged.
+  const fetchApprovals = refetchApprovals;
 
   useEffect(() => {
     setHistoryPage(1);
@@ -238,14 +231,10 @@ export default function Approvals() {
       setUpdating(id);
       await updateApprovalStatus(id, status);
 
-      const item = pending.find(r => r.id === id);
-      if (item) {
-        const updatedItem = { ...item, status: status, approvedAt: new Date().toISOString() };
-        setPending(prev => prev.filter(r => r.id !== id));
-        setHistory(prev => sortHistoryNewestFirst([updatedItem, ...prev]));
-        window.dispatchEvent(new CustomEvent('refresh-approval-count'));
-        fetchApprovals();
-      }
+      // Refresh the shared badge count, then re-fetch approvals (pending/history are derived
+      // from the query, so refetch re-syncs the lists).
+      window.dispatchEvent(new CustomEvent('refresh-approval-count'));
+      await refetchApprovals();
     } catch (err) {
       console.error("Error updating status:", err);
       alert("Failed to update status. Please try again.");

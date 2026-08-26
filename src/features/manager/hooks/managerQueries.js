@@ -24,8 +24,9 @@ function toList(res) {
 
 export function useApprovals(status = 'PENDING', options = {}) {
   return useQuery({
-    queryKey: ['manager', 'approvals', status],
-    queryFn: () => getApprovals(status),
+    // status null/undefined means "all" (the backend treats a missing status as all).
+    queryKey: ['manager', 'approvals', status || 'ALL'],
+    queryFn: () => getApprovals(status || null),
     select: (data) => (Array.isArray(data) ? data : []),
     ...options,
   });
