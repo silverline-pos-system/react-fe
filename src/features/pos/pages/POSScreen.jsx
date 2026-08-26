@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_V1 } from '@/lib/config';
 import { useClock } from '@/features/pos/hooks/useClock';
 import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
 import { useCart } from '@/features/pos/hooks/useCart';
+import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
@@ -161,53 +162,6 @@ function POSContent() {
     const [showSupplierPaymentModal, setShowSupplierPaymentModal] = useState(false);
     const [showApprovedPayoutModal, setShowApprovedPayoutModal] = useState(false);
     const [showRejectedPayoutModal, setShowRejectedPayoutModal] = useState(false);
-
-    const getServiceOverlayKey = useCallback((shiftId) => `pos_service_overlay_shift_${shiftId}`, []);
-
-    const getServiceOverlay = useCallback((shiftId) => {
-        if (!shiftId) {
-            return { cashSales: 0, cardSales: 0, otherSales: 0, expectedCash: 0, totalSales: 0, transactionCount: 0, dtvSales: 0, repairSales: 0, reloadSales: 0 };
-        }
-        try {
-            const raw = localStorage.getItem(getServiceOverlayKey(shiftId));
-            const parsed = raw ? JSON.parse(raw) : null;
-            if (!parsed || typeof parsed !== 'object') throw new Error('invalid');
-            return {
-                cashSales: Number(parsed.cashSales || 0),
-                cardSales: Number(parsed.cardSales || 0),
-                otherSales: Number(parsed.otherSales || 0),
-                expectedCash: Number(parsed.expectedCash || 0),
-                totalSales: Number(parsed.totalSales || 0),
-                transactionCount: Number(parsed.transactionCount || 0),
-                dtvSales: Number(parsed.dtvSales || 0),
-                repairSales: Number(parsed.repairSales || 0),
-                reloadSales: Number(parsed.reloadSales || 0),
-            };
-        } catch {
-            return { cashSales: 0, cardSales: 0, otherSales: 0, expectedCash: 0, totalSales: 0, transactionCount: 0, dtvSales: 0, repairSales: 0, reloadSales: 0 };
-        }
-    }, [getServiceOverlayKey]);
-
-    const mergeTotalsWithOverlay = useCallback((baseTotals, shiftId) => {
-        const overlay = getServiceOverlay(shiftId);
-        const base = baseTotals || {};
-        return {
-            ...base,
-            cashSales: Number(base.cashSales || base.cashTotal || base.cashAmount || 0) + overlay.cashSales,
-            cardSales: Number(base.cardSales || base.cardTotal || base.cardAmount || 0) + overlay.cardSales,
-            cardTotal: Number(base.cardTotal || base.cardSales || base.cardAmount || 0) + overlay.cardSales,
-            otherPayments: Number(base.otherPayments || base.otherTotal || base.qrTotal || base.qrSales || 0) + overlay.otherSales,
-            totalSales: Number(base.totalSales || base.netTotal || base.netSales || 0) + overlay.totalSales,
-            netTotal: Number(base.netTotal || base.totalSales || 0) + overlay.totalSales,
-            transactionCount: Number(base.transactionCount || base.totalBills || base.totalTransactions || base.billCount || 0) + overlay.transactionCount,
-            totalBills: Number(base.totalBills || base.transactionCount || base.totalTransactions || base.billCount || 0) + overlay.transactionCount,
-            expectedCash: Number(base.expectedCash || base.expectedCashInDrawer || 0) + overlay.expectedCash,
-            expectedCashInDrawer: Number(base.expectedCashInDrawer || base.expectedCash || 0) + overlay.expectedCash,
-            serviceDtvSales: overlay.dtvSales,
-            serviceRepairSales: overlay.repairSales,
-            serviceReloadSales: overlay.reloadSales,
-        };
-    }, [getServiceOverlay]);
 
     // Calculate cart totals including discounts
 
