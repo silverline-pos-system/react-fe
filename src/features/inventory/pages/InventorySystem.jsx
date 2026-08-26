@@ -32,6 +32,7 @@ import StockAgingScreen from './StockAgingScreen';
 
 import inventoryService from '@/features/inventory/services/inventoryService';
 import storeService from '@/features/inventory/services/storeService';
+import { useInventoryBranches } from '@/features/inventory/hooks/inventoryQueries';
 
 import { InventoryNotificationProvider, useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
 import InventoryToastNotification from '@/features/inventory/components/InventoryToastNotification';
@@ -114,7 +115,8 @@ const InventorySystemContent = () => {
     const [stockFilterWarehouse, setStockFilterWarehouse] = useState('');
     const [stockFilterDate, setStockFilterDate] = useState('');
 
-    const [branches, setBranches] = useState([]);
+    // Branches are read-only reference data, now cached via React Query (no local state / CRUD).
+    const { data: branches = [] } = useInventoryBranches();
     const [items, setItems] = useState([]);
     const [batches, setBatches] = useState([]);
 
@@ -200,16 +202,12 @@ const InventorySystemContent = () => {
             console.log('[InventorySystem] Starting to load inventory data...');
             try {
                 console.log('[InventorySystem] Calling Promise.all for products, categories, brands, suppliers, subcategories, branches');
-                const [productsData, categoriesData, brandsData, suppliersData, subCategoriesData, branchesData, batchesData] = await Promise.all([
+                const [productsData, categoriesData, brandsData, suppliersData, subCategoriesData, batchesData] = await Promise.all([
                     inventoryService.getProducts(),
                     inventoryService.getCategories(),
                     inventoryService.getBrands(),
                     inventoryService.getSuppliers(),
                     inventoryService.getSubCategories(),
-                    inventoryService.getBranches().catch(err => {
-                        console.warn('Failed to fetch branches, using empty list:', err);
-                        return [];
-                    }),
                     storeService.getBatches().catch(err => {
                         console.warn('Failed to fetch batches, using empty list:', err);
                         return [];
@@ -221,7 +219,6 @@ const InventorySystemContent = () => {
                     categories: categoriesData?.length || 0,
                     brands: brandsData?.length || 0,
                     suppliers: suppliersData?.length || 0,
-                    branches: branchesData?.length || 0,
                     batches: batchesData?.length || 0
                 });
 
@@ -246,7 +243,6 @@ const InventorySystemContent = () => {
                 setBrands(enhancedBrands);
                 setSuppliers(suppliersData);
                 setSubCategories(subCategoriesData);
-                setBranches(branchesData);
                 setBatches(batchesData);
 
                 console.log('[InventorySystem] State updated successfully');
