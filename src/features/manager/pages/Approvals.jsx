@@ -86,6 +86,52 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, type = 'info
   );
 }
 
+// Pure helpers (module scope so they're available to the render-time derivations below).
+const isManagerTakenPayout = (row) => {
+  const txt = `${row?.reason || ""} ${row?.description || ""} ${row?.notes || ""}`;
+  return row?.takenByManager === true || /\[TAKEN_BY_MANAGER\]/i.test(txt);
+};
+
+const cleanReasonText = (txt) => String(txt || "").replace(/\[TAKEN_BY_MANAGER\]\s*/gi, "").trim();
+
+const getHistorySortTimestamp = (row) => {
+  const candidates = [
+    row?.approvedAt,
+    row?.updatedAt,
+    row?.processedAt,
+    row?.actionAt,
+    row?.createdAt,
+    row?.time,
+    row?.date,
+  ];
+
+  for (const value of candidates) {
+    if (!value) continue;
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
+  return 0;
+};
+
+const isToday = (row) => {
+  const ts = getHistorySortTimestamp(row);
+  if (!ts) return false;
+  const date = new Date(ts);
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+};
+
+const sortHistoryNewestFirst = (rows) => [...rows].sort((left, right) => {
+  const timeDiff = getHistorySortTimestamp(right) - getHistorySortTimestamp(left);
+  if (timeDiff !== 0) return timeDiff;
+  return Number(right?.id || 0) - Number(left?.id || 0);
+});
+
 export default function Approvals() {
   // Approvals are fetched via React Query (cached, deduped). pending/history/summary are derived
   // during render from the same data the old fetchApprovals produced.
@@ -142,51 +188,6 @@ export default function Approvals() {
     title: "",
     message: "",
     type: "info"
-  });
-
-  const isManagerTakenPayout = (row) => {
-    const txt = `${row?.reason || ""} ${row?.description || ""} ${row?.notes || ""}`;
-    return row?.takenByManager === true || /\[TAKEN_BY_MANAGER\]/i.test(txt);
-  };
-
-  const cleanReasonText = (txt) => String(txt || "").replace(/\[TAKEN_BY_MANAGER\]\s*/gi, "").trim();
-
-  const getHistorySortTimestamp = (row) => {
-    const candidates = [
-      row?.approvedAt,
-      row?.updatedAt,
-      row?.processedAt,
-      row?.actionAt,
-      row?.createdAt,
-      row?.time,
-      row?.date,
-    ];
-
-    for (const value of candidates) {
-      if (!value) continue;
-      const parsed = new Date(value);
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.getTime();
-      }
-    }
-
-    return 0;
-  };
-
-  const isToday = (row) => {
-    const ts = getHistorySortTimestamp(row);
-    if (!ts) return false;
-    const date = new Date(ts);
-    const today = new Date();
-    return date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
-  };
-
-  const sortHistoryNewestFirst = (rows) => [...rows].sort((left, right) => {
-    const timeDiff = getHistorySortTimestamp(right) - getHistorySortTimestamp(left);
-    if (timeDiff !== 0) return timeDiff;
-    return Number(right?.id || 0) - Number(left?.id || 0);
   });
 
   const { selectedBranchId } = useBranch();
