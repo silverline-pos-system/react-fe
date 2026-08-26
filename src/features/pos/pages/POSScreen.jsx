@@ -5,6 +5,7 @@ import { useClock } from '@/features/pos/hooks/useClock';
 import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
 import { useCart } from '@/features/pos/hooks/useCart';
 import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
+import { useShift } from '@/features/pos/hooks/useShift';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
@@ -59,12 +60,6 @@ function POSContent() {
     // Check if out-of-stock sales are allowed via feature flag
     const isOosAllowed = isFeatureActive('ALLOW_OUT_OF_STOCK');
     const [branchId, setBranchId] = useState(getBranchId());
-    const [session, setSession] = useState({
-        isOpen: false,
-        cashier: "--",
-        shiftId: null,
-        userId: null
-    });
     // Cart state container (line items, bill discount, selection indices, derived totals).
     const {
         cart, setCart,
@@ -82,7 +77,6 @@ function POSContent() {
         return localStorage.getItem('pos_invoice_draft') || "INV-READY";
     });
     const [nextInvoiceNo, setNextInvoiceNo] = useState(1); // Track next invoice number
-    const [shiftTotals, setShiftTotals] = useState(null);
     const [branchInfo, setBranchInfo] = useState({ name: "Loading...", code: "" });
 
     // Auto-save drafts to localStorage
@@ -152,8 +146,6 @@ function POSContent() {
     const [currentSaleId, setCurrentSaleId] = useState(null);
     const [quickGridRefresh, setQuickGridRefresh] = useState(0);
     const time = useClock();
-    const [cashierSummary, setCashierSummary] = useState(null);
-    const [cashierSummaryLoading, setCashierSummaryLoading] = useState(false);
     const [pendingMultiPriceProduct, setPendingMultiPriceProduct] = useState(null);
     const [pendingSerialIndex, setPendingSerialIndex] = useState(null);
     const [serialModalOpen, setSerialModalOpen] = useState(false);
@@ -165,22 +157,18 @@ function POSContent() {
 
     // Calculate cart totals including discounts
 
-    // Helper to refresh shift totals
-    const fetchShiftTotals = async () => {
-        if (session.shiftId) {
-            try {
-                const res = await posService.getShiftTotals(session.shiftId);
-                const data = res.data?.data || res.data || {};
-                setShiftTotals(mergeTotalsWithOverlay(data, session.shiftId));
-            } catch (e) {
-                console.error("Failed to fetch shift totals:", e);
-                addNotification('error', 'Sync Failed', 'Could not refresh shift totals.');
-            }
-        }
-    };
 
     const inputRef = useRef(null);
     const { addNotification, setIsOpen, unreadCount } = useNotification();
+
+    // Shift/session state (session, totals, cashier summary). Lifecycle handlers stay below.
+    const {
+        session, setSession,
+        shiftTotals, setShiftTotals,
+        cashierSummary, setCashierSummary,
+        cashierSummaryLoading, setCashierSummaryLoading,
+        fetchShiftTotals,
+    } = useShift({ addNotification });
 
     // Supplier-payout notifications (self-contained feature; data + polling + receipt printing).
     const {
