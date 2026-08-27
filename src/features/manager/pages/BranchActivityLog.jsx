@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useBranch } from "@/context/BranchContext";
 import {
     Activity, Search, Calendar, User, Clock,
@@ -205,11 +206,36 @@ function LiveIndicator({ isLive }) {
     );
 }
 
+// Pure formatter (module scope): parse timestamps and drop admin-role rows. Used as the query select.
+function formatActivities(data) {
+    if (!Array.isArray(data)) return [];
+    return data
+        .map(item => {
+            let dateObj;
+            const ts = item.timestamp || item.createdAt;
+            if (Array.isArray(ts)) {
+                dateObj = new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0);
+            } else {
+                dateObj = new Date(ts);
+            }
+            return { ...item, parsedDate: dateObj };
+        })
+        .filter(item => {
+            let role = item.userRole || 'System';
+            try {
+                if (item.metadata) {
+                    const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata;
+                    const nestedUserInfo = meta?.user_info || {};
+                    const metaRole = nestedUserInfo.role || meta.role;
+                    if (metaRole) role = metaRole;
+                }
+            } catch { /* ignore malformed metadata */ }
+            return role !== 'SUPER_ADMIN' && role !== 'Admin';
+        });
+}
+
 export default function BranchActivityLog() {
     const { selectedBranchId } = useBranch();
-    const [activities, setActivities] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [isLive] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
@@ -219,57 +245,21 @@ export default function BranchActivityLog() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(15);
 
-    const fetchActivities = useCallback(async () => {
-        try {
-            setRefreshing(true);
-            const data = await getBranchActivityLog(selectedBranchId || 1, { date: dateFilter });
+    // Cached, deduped activity log with the same 30s live refresh (when isLive).
+    const {
+        data: activities = [],
+        isLoading: loading,
+        isFetching: refreshing,
+        refetch,
+    } = useQuery({
+        queryKey: ['manager', 'branchActivity', selectedBranchId || 1, dateFilter],
+        queryFn: () => getBranchActivityLog(selectedBranchId || 1, { date: dateFilter }),
+        select: formatActivities,
+        refetchInterval: isLive ? 30000 : false,
+    });
 
-            if (Array.isArray(data)) {
-                const formattedData = data
-                    .map(item => {
-                        let dateObj;
-                        const ts = item.timestamp || item.createdAt;
-                        if (Array.isArray(ts)) {
-                            dateObj = new Date(ts[0], ts[1] - 1, ts[2], ts[3] || 0, ts[4] || 0, ts[5] || 0);
-                        } else {
-                            dateObj = new Date(ts);
-                        }
-                        return { ...item, parsedDate: dateObj };
-                    })
-                    .filter(item => {
-                        let role = item.userRole || 'System';
-                        try {
-                            if (item.metadata) {
-                                const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata;
-                                const nestedUserInfo = meta?.user_info || {};
-                                const metaRole = nestedUserInfo.role || meta.role;
-                                if (metaRole) role = metaRole;
-                            }
-                        } catch (err) {}
-                        return role !== 'SUPER_ADMIN' && role !== 'Admin';
-                    });
-                setActivities(formattedData);
-            } else {
-                setActivities([]);
-            }
-        } catch (err) {
-            console.error("Failed to load activities", err);
-            setActivities([]);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [dateFilter, selectedBranchId]);
-
-    useEffect(() => {
-        fetchActivities();
-
-        let interval;
-        if (isLive) {
-            interval = setInterval(fetchActivities, 30000);
-        }
-        return () => clearInterval(interval);
-    }, [fetchActivities, isLive]);
+    // Kept name so the refresh button (onClick={fetchActivities}) is unchanged.
+    const fetchActivities = refetch;
 
     const stats = useMemo(() => {
         const shiftOpens = activities.filter(a => a.actionType === 'SHIFT_OPEN').length;

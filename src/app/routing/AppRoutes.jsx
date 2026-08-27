@@ -25,6 +25,7 @@ const ManagerPOApprovals = lazy(() => import('@/features/manager/pages/ManagerPO
 const ManagerServicesScreen = lazy(() => import('@/features/manager/pages/ManagerServicesScreen'));
 const ManagerSecondaryRoles = lazy(() => import('@/features/manager/pages/SecondaryRoleAssignment'));
 const ManagerExpenses = lazy(() => import('@/features/manager/pages/Expenses'));
+const ManagerSupplierPayments = lazy(() => import('@/features/manager/pages/SupplierPayments'));
 
 const AdminDashboard = lazy(() => import('@/features/admin/pages/AdminDashboard'));
 
@@ -95,6 +96,7 @@ export default function AppRoutes() {
           <Route path="services" element={<ManagerServicesScreen />} />
           <Route path="secondary-roles" element={<ManagerSecondaryRoles />} />
           <Route path="expenses" element={<ManagerExpenses />} />
+          <Route path="supplier-payments" element={<ManagerSupplierPayments />} />
         </Route>
 
         <Route

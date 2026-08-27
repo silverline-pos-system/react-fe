@@ -102,25 +102,6 @@ export const inventoryService = {
                 });
         };
 
-        const extractFromSaleHeaders = (sales) => {
-            const extracted = [];
-            sales.forEach((sale) => {
-                const saleDate = sale?.saleDate || sale?.date || sale?.createdAt || sale?.created_at || null;
-                const lineItems = sale?.items || sale?.saleItems || sale?.orderItems || [];
-                if (!Array.isArray(lineItems)) return;
-                lineItems.forEach((line) => {
-                    const rowProductId = line?.product_id ?? line?.productId ?? line?.item_id ?? line?.itemId ?? line?.id;
-                    if (normalizeId(rowProductId) !== targetId) return;
-                    const qty = toNumber(line?.quantity ?? line?.qty ?? line?.soldQty ?? line?.totalQuantity ?? line?.quantitySold ?? 0);
-                    const unit = toNumber(line?.selling_price ?? line?.sellingPrice ?? line?.unit_price ?? line?.unitPrice ?? 0);
-                    const revenue = toNumber(line?.lineTotal ?? line?.total ?? line?.netTotal ?? line?.totalRevenue ?? unit * qty);
-                    const lineBranchId = line?.branch_id ?? line?.branchId ?? sale?.branch_id ?? sale?.branchId ?? null;
-                    extracted.push({ date: saleDate, quantity: qty, revenue, branchId: lineBranchId });
-                });
-            });
-            return extracted;
-        };
-
         const fetchSalesRows = async (params) => {
             try {
                 if (params.productId) {

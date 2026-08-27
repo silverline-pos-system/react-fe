@@ -29,11 +29,9 @@ export default function PaymentModal({ total, cart = [], invoiceId, cashierName,
         if (totals) return totals;
         const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const totalDiscount = cart.reduce((sum, item) => sum + (item.discount || 0), 0);
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - (item.discount || 0);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
-        const netTotal = grossTotal - totalDiscount + taxAmount;
+        // Tax/VAT removed: no tax is applied to sales.
+        const taxAmount = 0;
+        const netTotal = grossTotal - totalDiscount;
         return { grossTotal, totalDiscount, taxAmount, netTotal };
     }, [cart, totals]);
 
@@ -52,7 +50,11 @@ export default function PaymentModal({ total, cart = [], invoiceId, cashierName,
         inputRef.current?.focus();
     }, [payments.length, total, remaining]);
 
-    const handleFinalize = (paymentsOverride = null) => {
+    const handleFinalize = async (paymentsOverride = null) => {
+        // Double-submit guard. The button is disabled while processing, but the Enter-key path
+        // reaches here too, so guard explicitly to ensure a sale is submitted at most once.
+        if (processing) return;
+
         const finalPayments = paymentsOverride || payments;
         const finalTotalPaid = finalPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
         const finalRemaining = Math.max(0, total - finalTotalPaid);
@@ -64,14 +66,20 @@ export default function PaymentModal({ total, cart = [], invoiceId, cashierName,
         }
         setProcessing(true);
 
-        onProcess({
-            payments: finalPayments,
-            totalPaid: finalTotalPaid,
-            change: finalChange,
-            paidAmount: finalTotalPaid,
-            changeAmount: finalChange,
-            doNotPrint
-        });
+        try {
+            await onProcess({
+                payments: finalPayments,
+                totalPaid: finalTotalPaid,
+                change: finalChange,
+                paidAmount: finalTotalPaid,
+                changeAmount: finalChange,
+                doNotPrint
+            });
+        } finally {
+            // On success the modal is unmounted by the parent; on failure this re-enables
+            // the button so the cashier can retry instead of being stuck.
+            setProcessing(false);
+        }
     };
 
     const handleKeyDown = (e) => {

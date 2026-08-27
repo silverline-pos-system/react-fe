@@ -9,7 +9,7 @@ import { useSystemName } from '@/context/SystemNameContext';
 import ConfirmActionModal from '@/shared/components/ConfirmActionModal';
 import PORequestModal from '../components/PORequestModal';
 import FinalizeCostModal from '../components/FinalizeCostModal';
-import { formatRepairNo, getRepairStatusBadgeColor } from '../utils/techHelpers';
+import { formatRepairNo, getRepairStatusBadgeColor as getStatusBadgeColor } from '../utils/techHelpers';
 
 function RepairDashboard() {
     const [user, setUser] = useState({});

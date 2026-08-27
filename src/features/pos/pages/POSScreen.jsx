@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_V1 } from '@/lib/config';
+import { useClock } from '@/features/pos/hooks/useClock';
+import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
+import { useCart } from '@/features/pos/hooks/useCart';
+import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
+import { buildSaleOrder } from '@/features/pos/utils/buildSaleOrder';
+import { useShift } from '@/features/pos/hooks/useShift';
 import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import { posService } from '@/features/pos/services/posService';
 import { authService } from '@/features/auth/services/authService';
-import { poService } from '@/features/procurement/services/poService';
 import { servicesService } from '@/shared/services/servicesService';
-import { getApprovals } from '@/features/manager/services/managerService';
 import { NotificationProvider, useNotification } from '@/features/pos/context/NotificationContext';
 import NotificationPanel from '@/features/pos/components/NotificationPanel';
-import { printReceiptPDF, printShiftSummary, printPayInOutReceipt } from '@/features/pos/utils/receiptPrinter';
+import { printReceiptPDF, printShiftSummary } from '@/features/pos/utils/receiptPrinter';
 import { useFeatures } from '@/context/FeatureContext';
 import { useSystemName } from '@/context/SystemNameContext';
 import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
@@ -56,16 +61,14 @@ function POSContent() {
     // Check if out-of-stock sales are allowed via feature flag
     const isOosAllowed = isFeatureActive('ALLOW_OUT_OF_STOCK');
     const [branchId, setBranchId] = useState(getBranchId());
-    const [session, setSession] = useState({
-        isOpen: false,
-        cashier: "--",
-        shiftId: null,
-        userId: null
-    });
-    const [cart, setCart] = useState(() => {
-        const savedCart = localStorage.getItem('pos_cart_draft');
-        return savedCart ? JSON.parse(savedCart) : [];
-    });
+    // Cart state container (line items, bill discount, selection indices, derived totals).
+    const {
+        cart, setCart,
+        cartTotals,
+        billDiscount, setBillDiscount,
+        editingCartIndex, setEditingCartIndex,
+        selectedCartIndex, setSelectedCartIndex,
+    } = useCart();
     const [customer, setCustomer] = useState(() => {
         const savedCustomer = localStorage.getItem('pos_customer_draft');
         return savedCustomer ? JSON.parse(savedCustomer) : null;
@@ -75,7 +78,6 @@ function POSContent() {
         return localStorage.getItem('pos_invoice_draft') || "INV-READY";
     });
     const [nextInvoiceNo, setNextInvoiceNo] = useState(1); // Track next invoice number
-    const [shiftTotals, setShiftTotals] = useState(null);
     const [branchInfo, setBranchInfo] = useState({ name: "Loading...", code: "" });
 
     // Auto-save drafts to localStorage
@@ -143,120 +145,41 @@ function POSContent() {
 
     // Track active sale ID for updates (Held/Recall flow)
     const [currentSaleId, setCurrentSaleId] = useState(null);
-    const [editingCartIndex, setEditingCartIndex] = useState(null);
-    const [selectedCartIndex, setSelectedCartIndex] = useState(null);
     const [quickGridRefresh, setQuickGridRefresh] = useState(0);
-    const [time, setTime] = useState(new Date());
-    const [cashierSummary, setCashierSummary] = useState(null);
-    const [cashierSummaryLoading, setCashierSummaryLoading] = useState(false);
-    const [billDiscount, setBillDiscount] = useState(0); // Bill-level discount amount
+    const time = useClock();
     const [pendingMultiPriceProduct, setPendingMultiPriceProduct] = useState(null);
     const [pendingSerialIndex, setPendingSerialIndex] = useState(null);
     const [serialModalOpen, setSerialModalOpen] = useState(false);
 
+    // Supplier-payout modal toggles (UI only). Data + logic live in useSupplierPayouts.
     const [showSupplierPaymentModal, setShowSupplierPaymentModal] = useState(false);
-    const [supplierPaymentCount, setSupplierPaymentCount] = useState(0);
-    const [approvedPayouts, setApprovedPayouts] = useState([]);
-    const [rejectedPayouts, setRejectedPayouts] = useState([]);
     const [showApprovedPayoutModal, setShowApprovedPayoutModal] = useState(false);
     const [showRejectedPayoutModal, setShowRejectedPayoutModal] = useState(false);
-    const [processingPayoutId, setProcessingPayoutId] = useState(null);
-    const [processedPayoutIds, setProcessedPayoutIds] = useState(() => {
-        try {
-            const raw = localStorage.getItem('pos_processed_paid_out');
-            const parsed = raw ? JSON.parse(raw) : [];
-            return new Set(Array.isArray(parsed) ? parsed : []);
-        } catch {
-            return new Set();
-        }
-    });
-
-    const getServiceOverlayKey = useCallback((shiftId) => `pos_service_overlay_shift_${shiftId}`, []);
-
-    const getServiceOverlay = useCallback((shiftId) => {
-        if (!shiftId) {
-            return { cashSales: 0, cardSales: 0, otherSales: 0, expectedCash: 0, totalSales: 0, transactionCount: 0, dtvSales: 0, repairSales: 0, reloadSales: 0 };
-        }
-        try {
-            const raw = localStorage.getItem(getServiceOverlayKey(shiftId));
-            const parsed = raw ? JSON.parse(raw) : null;
-            if (!parsed || typeof parsed !== 'object') throw new Error('invalid');
-            return {
-                cashSales: Number(parsed.cashSales || 0),
-                cardSales: Number(parsed.cardSales || 0),
-                otherSales: Number(parsed.otherSales || 0),
-                expectedCash: Number(parsed.expectedCash || 0),
-                totalSales: Number(parsed.totalSales || 0),
-                transactionCount: Number(parsed.transactionCount || 0),
-                dtvSales: Number(parsed.dtvSales || 0),
-                repairSales: Number(parsed.repairSales || 0),
-                reloadSales: Number(parsed.reloadSales || 0),
-            };
-        } catch {
-            return { cashSales: 0, cardSales: 0, otherSales: 0, expectedCash: 0, totalSales: 0, transactionCount: 0, dtvSales: 0, repairSales: 0, reloadSales: 0 };
-        }
-    }, [getServiceOverlayKey]);
-
-    const mergeTotalsWithOverlay = useCallback((baseTotals, shiftId) => {
-        const overlay = getServiceOverlay(shiftId);
-        const base = baseTotals || {};
-        return {
-            ...base,
-            cashSales: Number(base.cashSales || base.cashTotal || base.cashAmount || 0) + overlay.cashSales,
-            cardSales: Number(base.cardSales || base.cardTotal || base.cardAmount || 0) + overlay.cardSales,
-            cardTotal: Number(base.cardTotal || base.cardSales || base.cardAmount || 0) + overlay.cardSales,
-            otherPayments: Number(base.otherPayments || base.otherTotal || base.qrTotal || base.qrSales || 0) + overlay.otherSales,
-            totalSales: Number(base.totalSales || base.netTotal || base.netSales || 0) + overlay.totalSales,
-            netTotal: Number(base.netTotal || base.totalSales || 0) + overlay.totalSales,
-            transactionCount: Number(base.transactionCount || base.totalBills || base.totalTransactions || base.billCount || 0) + overlay.transactionCount,
-            totalBills: Number(base.totalBills || base.transactionCount || base.totalTransactions || base.billCount || 0) + overlay.transactionCount,
-            expectedCash: Number(base.expectedCash || base.expectedCashInDrawer || 0) + overlay.expectedCash,
-            expectedCashInDrawer: Number(base.expectedCashInDrawer || base.expectedCash || 0) + overlay.expectedCash,
-            serviceDtvSales: overlay.dtvSales,
-            serviceRepairSales: overlay.repairSales,
-            serviceReloadSales: overlay.reloadSales,
-        };
-    }, [getServiceOverlay]);
 
     // Calculate cart totals including discounts
-    const cartTotals = useMemo(() => {
-        const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const itemDiscountAmount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - ((item.discount || 0) * item.qty);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
-        const totalDiscount = itemDiscountAmount + billDiscount;
-        const netTotal = grossTotal - totalDiscount + taxAmount;
 
-        return {
-            grossTotal,
-            itemDiscountAmount,
-            billDiscountAmount: billDiscount,
-            totalDiscount,
-            taxAmount,
-            netTotal,
-            itemCount: cart.length,
-            totalQty: cart.reduce((sum, item) => sum + item.qty, 0)
-        };
-    }, [cart, billDiscount]);
-
-    // Helper to refresh shift totals
-    const fetchShiftTotals = async () => {
-        if (session.shiftId) {
-            try {
-                const res = await posService.getShiftTotals(session.shiftId);
-                const data = res.data?.data || res.data || {};
-                setShiftTotals(mergeTotalsWithOverlay(data, session.shiftId));
-            } catch (e) {
-                console.error("Failed to fetch shift totals:", e);
-                addNotification('error', 'Sync Failed', 'Could not refresh shift totals.');
-            }
-        }
-    };
 
     const inputRef = useRef(null);
     const { addNotification, setIsOpen, unreadCount } = useNotification();
+
+    // Shift/session state (session, totals, cashier summary). Lifecycle handlers stay below.
+    const {
+        session, setSession,
+        shiftTotals, setShiftTotals,
+        cashierSummary, setCashierSummary,
+        cashierSummaryLoading, setCashierSummaryLoading,
+        fetchShiftTotals,
+    } = useShift({ addNotification });
+
+    // Supplier-payout notifications (self-contained feature; data + polling + receipt printing).
+    const {
+        supplierPaymentCount,
+        approvedPayouts,
+        rejectedPayouts,
+        processingPayoutId,
+        handleProcessApprovedPayout,
+        fetchSupplierPaymentCount,
+    } = useSupplierPayouts({ session, branchInfo, addNotification });
 
     // Fetch branch info for header display
     useEffect(() => {
@@ -287,143 +210,6 @@ function POSContent() {
         };
     }, [branchId]);
 
-    // Clock
-    useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    // Fetch Supplier Payment Request count
-    const fetchSupplierPaymentCount = useCallback(async () => {
-        try {
-            const res = await poService.getPOsByStatus('TRANSFERRED_TO_CASHIER');
-            const rawData = res.data?.data || res.data || [];
-            let poList = [];
-            if (Array.isArray(rawData)) {
-                poList = rawData;
-            } else if (rawData.content && Array.isArray(rawData.content)) {
-                poList = rawData.content;
-            } else if (rawData.data && Array.isArray(rawData.data)) {
-                poList = rawData.data;
-            } else if (rawData.data?.content && Array.isArray(rawData.data.content)) {
-                poList = rawData.data.content;
-            }
-            setSupplierPaymentCount(poList.length);
-        } catch (err) {
-            if (err?.response?.status !== 403) {
-                console.error('Failed to fetch supplier payment count:', err);
-            }
-        }
-    }, []);
-
-    // Initial load effects
-    useEffect(() => {
-        fetchSupplierPaymentCount();
-        const interval = setInterval(() => {
-            fetchSupplierPaymentCount();
-        }, 60000); // Check every minute
-        return () => clearInterval(interval);
-    }, [fetchSupplierPaymentCount]);
-
-    const getApprovalRows = useCallback((payload) => {
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload?.data?.data)) return payload.data.data;
-        if (Array.isArray(payload?.rows)) return payload.rows;
-        return [];
-    }, []);
-
-    const isApprovedPaidOutApproval = useCallback((row) => {
-        const status = String(row?.status || '').toUpperCase();
-        const category = String(row?.category || '').toUpperCase();
-        const type = String(row?.type || row?.flowType || '').toUpperCase();
-        const text = `${row?.reason || ''} ${row?.description || ''} ${row?.notes || ''}`.toUpperCase();
-        const isPaidOutLike =
-            category.includes('PAID_OUT') ||
-            category.includes('CASH_FLOW_PAID_OUT') ||
-            type.includes('PAID_OUT') ||
-            text.includes('PAID_OUT') ||
-            text.includes('PAYOUT') ||
-            text.includes('CASH OUT') ||
-            text.includes('CASH_OUT');
-        return status === 'APPROVED' && isPaidOutLike;
-    }, []);
-
-    const isRejectedPaidOutApproval = useCallback((row) => {
-        const status = String(row?.status || '').toUpperCase();
-        const category = String(row?.category || '').toUpperCase();
-        const type = String(row?.type || row?.flowType || '').toUpperCase();
-        const text = `${row?.reason || ''} ${row?.description || ''} ${row?.notes || ''}`.toUpperCase();
-        const isPaidOutLike =
-            category.includes('PAID_OUT') ||
-            category.includes('CASH_FLOW_PAID_OUT') ||
-            type.includes('PAID_OUT') ||
-            text.includes('PAID_OUT') ||
-            text.includes('PAYOUT') ||
-            text.includes('CASH OUT') ||
-            text.includes('CASH_OUT');
-        return status === 'REJECTED' && isPaidOutLike;
-    }, []);
-
-    const fetchApprovedPayouts = useCallback(async () => {
-        try {
-            const response = await getApprovals();
-            const rows = getApprovalRows(response);
-            const list = rows.filter(isApprovedPaidOutApproval);
-            setApprovedPayouts(list.filter((r) => !processedPayoutIds.has(r.id)));
-            const rejectedList = rows.filter(isRejectedPaidOutApproval);
-            setRejectedPayouts(rejectedList);
-        } catch (err) {
-            if (err?.response?.status !== 403) {
-                console.error('Failed to fetch approved payouts:', err);
-            }
-        }
-    }, [getApprovalRows, isApprovedPaidOutApproval, isRejectedPaidOutApproval, processedPayoutIds]);
-
-    useEffect(() => {
-        fetchApprovedPayouts();
-        const interval = setInterval(fetchApprovedPayouts, 60000);
-        return () => clearInterval(interval);
-    }, [fetchApprovedPayouts]);
-
-    const handleProcessApprovedPayout = async (row) => {
-        try {
-            setProcessingPayoutId(row.id);
-            const amount = Number(row.amount || 0);
-            const reasonText = String(row.reason || row.description || row.notes || 'Approved payout').replace(/\[TAKEN_BY_MANAGER\]\s*/gi, '').trim();
-
-            await printPayInOutReceipt({
-                type: 'PAID_OUT',
-                amount,
-                reason: reasonText,
-                referenceNo: row.referenceNo || row.id,
-                cashierName: session.cashier,
-                branchInfo,
-            });
-
-            setProcessedPayoutIds((prev) => {
-                const next = new Set(prev);
-                next.add(row.id);
-                localStorage.setItem('pos_processed_paid_out', JSON.stringify(Array.from(next)));
-                return next;
-            });
-
-            setApprovedPayouts((prev) => prev.filter((item) => item.id !== row.id));
-            addNotification('success', 'Payout Completed', `Paid-out receipt printed for approval #${row.id}.`);
-        } catch (err) {
-            console.error('Failed to process approved payout:', err);
-            addNotification('error', 'Payout Failed', err?.message || 'Failed to print payout receipt.');
-        } finally {
-            setProcessingPayoutId(null);
-        }
-    };
-
-    useEffect(() => {
-        if (selectedCartIndex === null || selectedCartIndex === undefined) return;
-        if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) {
-            setSelectedCartIndex(null);
-        }
-    }, [cart, selectedCartIndex]);
 
     // Check for active shift on mount (Persistence)
     const initRef = useRef(false);
@@ -585,8 +371,6 @@ function POSContent() {
                 payload.denominations = denominations;
             }
 
-            console.log("Opening Shift - Payload:", JSON.stringify(payload, null, 2));
-
             const res = await posService.openShift(payload);
             const data = res.data?.data || res.data;
 
@@ -707,7 +491,7 @@ function POSContent() {
             try {
                 const userObj = JSON.parse(localStorage.getItem('user') || '{}');
                 const token = localStorage.getItem('token');
-                await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+                await fetch(`${API_V1}/manager/activity/log`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -1051,6 +835,10 @@ function POSContent() {
         inputRef.current?.focus();
     };
 
+    // Stable idempotency key for one checkout attempt. A retried submit reuses it so the backend
+    // returns the original sale instead of creating a duplicate; cleared on success.
+    const checkoutKeyRef = useRef(null);
+
     const openPaymentModal = (mode = 'CASH') => {
         if (cart.length === 0) {
             addNotification('warning', 'Empty Cart', 'Add items first.');
@@ -1065,70 +853,24 @@ function POSContent() {
             addNotification('warning', 'Insufficient Items', 'Please add replacement items to cover the refund amount before checkout.');
             return;
         }
+        if (!checkoutKeyRef.current) {
+            checkoutKeyRef.current = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
         setListConfig({ mode });
         setActiveModal('PAYMENT');
     };
 
     // --- HANDLER: PROCESS PAYMENT ---
     const processPayment = async (paymentDetails) => {
-        const grossTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const itemDiscount = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
-        const totalDiscount = itemDiscount + billDiscount;
-        const taxAmount = cart.reduce((sum, item) => {
-            const itemTotal = (item.price * item.qty) - ((item.discount || 0) * item.qty);
-            return sum + (itemTotal * (item.taxRate || 0) / 100);
-        }, 0);
-        const netTotal = grossTotal - totalDiscount + taxAmount;
-
-        const productItems = cart.filter(item => !item.isService && !item.dtvData && !item.repairData && !item.isReturn);
-        const mappedItems = productItems.map(item => ({
-            productId: item.id,
-            serialId: item.serialId || null,
-            batchId: item.batchId || null,
-            qty: item.qty,
-            unitPrice: item.price,
-            discount: item.discount || 0,
-            taxRate: item.taxRate || 0
-        }));
-
-        const paymentList = paymentDetails.payments.map(p => ({
-            paymentType: p.paymentType,
-            amount: p.amount,
-            referenceNo: p.referenceNo || null,
-            bankName: p.bankName || null,
-            cardLast4: p.cardLast4 || null
-        }));
-
-        const hasServiceItems = cart.some(item => item.isService || item.dtvData || item.repairData);
-        const isServiceOnly = mappedItems.length === 0 && hasServiceItems;
-
-        const serviceTypeTotals = cart.reduce((acc, item) => {
-            const line = Number(item.price || 0) * Number(item.qty || 1);
-            if (item.dtvData) acc.dtv += line;
-            else if (item.repairData) acc.repair += line;
-            else if (item.type === 'RELOAD') acc.reload += line;
-            return acc;
-        }, { dtv: 0, repair: 0, reload: 0 });
-
-        const orderData = {
-            saleId: currentSaleId,
-            branchId: branchId,
-            cashierId: session.userId,
-            customerId: customer ? customer.customerId || customer.id : null,
-            shiftId: session.shiftId,
-            grossTotal: grossTotal,
-            discount: totalDiscount,
-            taxAmount: taxAmount,
-            netTotal: netTotal,
-            paidAmount: paymentDetails.totalPaid,
-            changeAmount: paymentDetails.changeAmount || 0,
-            saleType: isServiceOnly ? "SERVICE" : "RETAIL",
-            notes: isServiceOnly
-                ? `Service payment: ${cart.map(i => i.repairData?.repairNo || i.dtvData?.refNo || (i.type === 'RELOAD' ? i.name : null) || (i.isService ? i.name : null)).filter(Boolean).join(', ')}`
-                : "",
-            items: mappedItems,
-            payments: paymentList
-        };
+        // Pure payload build (totals, items, payments, service detection) is isolated + tested.
+        const { orderData, netTotal, isServiceOnly, serviceTypeTotals } = buildSaleOrder(
+            cart,
+            billDiscount,
+            { currentSaleId, branchId, session, customer, idempotencyKey: checkoutKeyRef.current },
+            paymentDetails,
+        );
 
         try {
             const res = await posService.submitOrder(orderData);
@@ -1156,7 +898,6 @@ function POSContent() {
                             ...item.dtvData,
                             saleId: data?.saleId || data?.id || null
                         };
-                        console.log("Submitting deferred DTV Service request:", dtvPayload);
                         await servicesService.createDtvService(dtvPayload);
                     } catch (dtvErr) {
                         console.error('Failed to submit deferred DTV request:', dtvErr);
@@ -1258,6 +999,7 @@ function POSContent() {
             setCurrentSaleId(null);
             setBillDiscount(0);
             setActiveModal(null);
+            checkoutKeyRef.current = null; // fresh key for the next sale
 
             setTimeout(() => { setInvoiceId("INV-READY"); }, 3000);
         } catch (err) {

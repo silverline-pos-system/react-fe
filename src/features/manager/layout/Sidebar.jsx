@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutGrid,
@@ -14,13 +13,8 @@ import {
   Shield,
   Wallet
 } from "lucide-react";
-import { 
-  getUserRegistrations, 
-  getApprovals, 
-  getPendingDispatches 
-} from "../services/managerService";
-import { poService } from "@/features/procurement/services/poService";
 import { useSystemName } from "@/context/SystemNameContext";
+import { usePendingCounts } from "../hooks/usePendingCounts";
 import FeatureGate from "@/shared/components/FeatureGate";
 
 const base =
@@ -46,50 +40,8 @@ const NavItemLink = ({ to, icon: Icon, label, end = false, badge, onNavigate }) 
 
 export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} }) {
   const { systemName } = useSystemName();
-  const [pendingCount, setPendingCount] = useState(0);
-  const [cashierPendingCount, setCashierPendingCount] = useState(0);
-  const [inventoryPendingCount, setInventoryPendingCount] = useState(0);
-
-  useEffect(() => {
-    const fetchPendingCounts = async () => {
-      try {
-        const userData = await getUserRegistrations("PENDING");
-        if (Array.isArray(userData)) {
-          setPendingCount(userData.length);
-        }
-
-        const approvalData = await getApprovals("PENDING");
-        if (Array.isArray(approvalData)) {
-          const filtered = approvalData.filter(item => item.category !== "USER_REGISTRATION");
-          setCashierPendingCount(filtered.length);
-        }
-
-        const poRes = await poService.getPendingPOs();
-        const poRaw = poRes.data?.data || poRes.data || [];
-        let poList = [];
-        if (Array.isArray(poRaw)) {
-          poList = poRaw;
-        } else if (poRaw.content && Array.isArray(poRaw.content)) {
-          poList = poRaw.content;
-        } else if (poRaw.data && Array.isArray(poRaw.data)) {
-          poList = poRaw.data;
-        } else if (poRaw.data?.content && Array.isArray(poRaw.data.content)) {
-          poList = poRaw.data.content;
-        }
-        setInventoryPendingCount(poList.length);
-      } catch (err) {
-        console.error("Failed to fetch pending counts sidebar", err);
-      }
-    };
-
-    window.addEventListener('refresh-approval-count', fetchPendingCounts);
-    fetchPendingCounts();
-    const interval = setInterval(fetchPendingCounts, 30000);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('refresh-approval-count', fetchPendingCounts);
-    };
-  }, []);
+  // Shared, cached, deduped badge counts (React Query handles polling + the refresh-approval-count event).
+  const { pendingCount, cashierPendingCount, inventoryPendingCount } = usePendingCounts();
 
   return (
     <aside className={`w-72 bg-gray-900 text-white h-screen flex flex-col min-h-0 fixed top-0 left-0 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:z-auto ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -151,6 +103,7 @@ export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} })
           </div>
           <div className="mt-2 space-y-1">
             <NavItemLink to="/manager/expenses" icon={Wallet} label="Expenses" onNavigate={onNavigate} />
+            <NavItemLink to="/manager/supplier-payments" icon={CreditCard} label="Supplier Payments" onNavigate={onNavigate} />
           </div>
         </div>
       </nav>

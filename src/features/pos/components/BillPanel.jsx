@@ -41,18 +41,17 @@ export default function BillPanel({ cart, customer, onItemClick, onDetachCustome
       const qty = item.qty || 1;
       const price = parseFloat(item.price) || 0;
       const discount = parseFloat(item.discount) || 0;
-      const taxRate = parseFloat(item.taxRate) || 0;
 
       const lineGross = price * qty;
       const lineDiscount = discount * qty;
-      const lineNet = lineGross - lineDiscount;
-      const lineTax = lineNet * (taxRate / 100);
 
       grossTotal += lineGross;
       discountAmount += lineDiscount;
-      taxAmount += lineTax;
       totalQty += qty;
     });
+
+    // Tax/VAT removed: no tax is applied to sales.
+    taxAmount = 0;
 
     return {
       grossTotal,
@@ -60,7 +59,7 @@ export default function BillPanel({ cart, customer, onItemClick, onDetachCustome
       itemDiscountAmount: discountAmount,
       billDiscountAmount: billDiscount,
       taxAmount,
-      netTotal: grossTotal - discountAmount - billDiscount + taxAmount,
+      netTotal: grossTotal - discountAmount - billDiscount,
       itemCount: cart.length,
       totalQty
     };

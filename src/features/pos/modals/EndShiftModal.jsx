@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { API_V1 } from '@/lib/config';
 import { Power, ArrowRight, ShieldCheck, Banknote, AlertTriangle, CheckCircle, Calculator, CreditCard, ArrowUpRight, ArrowDownLeft, X, QrCode, RefreshCw } from 'lucide-react';
 import useEscapeClose from '@/shared/hooks/useEscapeClose';
 import ConfirmActionModal from '@/shared/components/ConfirmActionModal';
@@ -30,7 +31,7 @@ export default function EndShiftModal({ cashierName, shiftId, expectedTotals, on
             const userObj = JSON.parse(localStorage.getItem('user') || '{}');
             const selectedBranchId = localStorage.getItem('selectedBranchId');
             const token = localStorage.getItem('token');
-            await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+            await fetch(`${API_V1}/manager/activity/log`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',

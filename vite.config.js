@@ -7,7 +7,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // Strip all console.* and debugger from production builds so no request payloads,
+  // tokens, or credentials are ever written to a shop machine's browser console.
+  esbuild: mode === 'production' ? { drop: ['console', 'debugger'] } : {},
   plugins: [react()],
   resolve: {
     alias: {
@@ -47,4 +50,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

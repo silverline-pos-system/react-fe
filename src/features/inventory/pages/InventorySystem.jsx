@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_V1 } from '@/lib/config';
 import { useNavigate } from 'react-router-dom';
 import { useSystemName } from '@/context/SystemNameContext';
 import {
@@ -31,6 +32,16 @@ import StockAgingScreen from './StockAgingScreen';
 
 import inventoryService from '@/features/inventory/services/inventoryService';
 import storeService from '@/features/inventory/services/storeService';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    useInventoryBranches,
+    useInventoryCategories,
+    useInventoryBrands,
+    useInventorySuppliers,
+    useInventorySubCategories,
+    useInventoryProducts,
+    useInventoryBatches,
+} from '@/features/inventory/hooks/inventoryQueries';
 
 import { InventoryNotificationProvider, useInventoryNotification } from '@/features/inventory/context/InventoryNotificationContext';
 import InventoryToastNotification from '@/features/inventory/components/InventoryToastNotification';
@@ -94,14 +105,14 @@ const InventorySystemContent = () => {
     const [editingId, setEditingId] = useState(null);
     const [editingType, setEditingType] = useState(null); // 'category', 'brand', 'supplier', 'item'
 
-    const [suppliers, setSuppliers] = useState([]);
+    const { data: suppliers = [] } = useInventorySuppliers();
     const [supplierForm, setSupplierForm] = useState({ supplier_id: '', code: '', name: '', company_name: '', contact_person: '', phone: '', mobile: '', email: '', address_line1: '', address_line2: '', city: '', state: '', postal_code: '', country: 'Sri Lanka', supplier_type: 'LOCAL', supplier_category: 'PRIMARY', is_active: true, is_verified: false });
 
-    const [brands, setBrands] = useState([]);
+    const { data: brands = [] } = useInventoryBrands();
     const [brandForm, setBrandForm] = useState({ brand_id: '', name: '', description: '', is_active: true, icon: 'Archive', color: 'blue' });
 
-    const [categories, setCategories] = useState([]);
-    const [subCategories, setSubCategories] = useState([]);
+    const { data: categories = [] } = useInventoryCategories();
+    const { data: subCategories = [] } = useInventorySubCategories();
     const [categoryForm, setCategoryForm] = useState({ category_id: '', name: '', description: '', is_active: true, icon: 'Tag', color: 'blue' });
     const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
 
@@ -113,9 +124,21 @@ const InventorySystemContent = () => {
     const [stockFilterWarehouse, setStockFilterWarehouse] = useState('');
     const [stockFilterDate, setStockFilterDate] = useState('');
 
-    const [branches, setBranches] = useState([]);
-    const [items, setItems] = useState([]);
-    const [batches, setBatches] = useState([]);
+    // Branches are read-only reference data, now cached via React Query (no local state / CRUD).
+    const { data: branches = [] } = useInventoryBranches();
+    const { data: items = [] } = useInventoryProducts();
+    const { data: batches = [] } = useInventoryBatches();
+
+    // React Query is now the source of truth for these lists. These shims keep the existing
+    // setX(...) CRUD call sites working by invalidating (refetching) the affected list instead of
+    // mutating local state. The optimistic argument is intentionally ignored.
+    const queryClient = useQueryClient();
+    const setItems = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'products'] });
+    const setCategories = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'categories'] });
+    const setBrands = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'brands'] });
+    const setSuppliers = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'suppliers'] });
+    const setSubCategories = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'subcategories'] });
+    const setBatches = () => queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
 
     // State for Stock Adjustment
     const [adjustmentForm, setAdjustmentForm] = useState({ itemId: '', batchId: '', currentQty: '', physicalQty: '', adjustmentType: 'Increase', reason: 'Audit', approvedBy: '' });
@@ -163,7 +186,7 @@ const InventorySystemContent = () => {
                 const userObj = JSON.parse(localStorage.getItem('user') || '{}');
                 const selectedBranchId = localStorage.getItem('selectedBranchId');
                 const token = localStorage.getItem('token');
-                await fetch(`http://localhost:8080/api/v1/manager/activity/log`, {
+                await fetch(`${API_V1}/manager/activity/log`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -192,71 +215,8 @@ const InventorySystemContent = () => {
     const goToAdmin = () => navigate('/admin');
     const goToManager = () => navigate('/manager');
 
-    // Load inventory data from backend on mount
-    useEffect(() => {
-        const loadInventoryData = async () => {
-            console.log('=== Inventory API called ===');
-            console.log('[InventorySystem] Starting to load inventory data...');
-            try {
-                console.log('[InventorySystem] Calling Promise.all for products, categories, brands, suppliers, subcategories, branches');
-                const [productsData, categoriesData, brandsData, suppliersData, subCategoriesData, branchesData, batchesData] = await Promise.all([
-                    inventoryService.getProducts(),
-                    inventoryService.getCategories(),
-                    inventoryService.getBrands(),
-                    inventoryService.getSuppliers(),
-                    inventoryService.getSubCategories(),
-                    inventoryService.getBranches().catch(err => {
-                        console.warn('Failed to fetch branches, using empty list:', err);
-                        return [];
-                    }),
-                    storeService.getBatches().catch(err => {
-                        console.warn('Failed to fetch batches, using empty list:', err);
-                        return [];
-                    })
-                ]);
-
-                console.log('[InventorySystem] Data received:', {
-                    products: productsData?.length || 0,
-                    categories: categoriesData?.length || 0,
-                    brands: brandsData?.length || 0,
-                    suppliers: suppliersData?.length || 0,
-                    branches: branchesData?.length || 0,
-                    batches: batchesData?.length || 0
-                });
-
-                // MERGE CATEGORIES WITH LOCAL METADATA
-                const categoryMetadata = JSON.parse(localStorage.getItem('category_metadata') || '{}');
-                const enhancedCategories = categoriesData.map(cat => ({
-                    ...cat,
-                    icon: categoryMetadata[cat.category_id]?.icon || cat.icon || 'Tag',
-                    color: categoryMetadata[cat.category_id]?.color || cat.color || 'blue'
-                }));
-
-                // MERGE BRANDS WITH LOCAL METADATA
-                const brandMetadata = JSON.parse(localStorage.getItem('brand_metadata') || '{}');
-                const enhancedBrands = brandsData.map(brand => ({
-                    ...brand,
-                    icon: brandMetadata[brand.brand_id]?.icon || brand.icon || 'Archive',
-                    color: brandMetadata[brand.brand_id]?.color || brand.color || 'blue'
-                }));
-
-                setItems(productsData);
-                setCategories(enhancedCategories);
-                setBrands(enhancedBrands);
-                setSuppliers(suppliersData);
-                setSubCategories(subCategoriesData);
-                setBranches(branchesData);
-                setBatches(batchesData);
-
-                console.log('[InventorySystem] State updated successfully');
-            } catch (err) {
-                console.error('[InventorySystem] Inventory API error:', err);
-                error('Failed to load inventory data. Please refresh the page.');
-            }
-        };
-
-        loadInventoryData();
-    }, []);
+    // Inventory reference data is loaded and cached via React Query (see the hooks above);
+    // the old mount-time Promise.all + local state has been removed.
 
     useEffect(() => {
         if (!ALLOWED_INVENTORY_SCREENS.includes(activeScreen)) {
