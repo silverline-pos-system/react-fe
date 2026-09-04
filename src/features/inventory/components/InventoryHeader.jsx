@@ -35,7 +35,7 @@ const InventoryHeader = ({ branchName, userRole, userName, goToAdmin, goToManage
                         className="group flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-300 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:border hover:border-blue-200"
                     >
                         <LayoutDashboard size={16} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
-                        <span className="hidden sm:inline text-slate-700 group-hover:text-blue-700 transition-colors">Admin Dashboard</span>
+                        <span className="hidden sm:inline text-slate-700 group-hover:text-blue-700 transition-colors">Super Admin Dashboard</span>
                     </button>
                 )}
                 {(userRole === 'SUPER_ADMIN' || userRole === 'MANAGER') && (

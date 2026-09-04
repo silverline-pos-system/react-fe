@@ -10,6 +10,7 @@ const ROLE_NAV_MAP = {
   DTV_TECHNICIAN: { path: "/dtv-tech", label: "DTV" },
   MOBILE_TECHNICIAN: { path: "/mobile-tech", label: "Mobile Repair" },
   MANAGER: { path: "/manager", label: "Manager" },
+  SUPER_ADMIN: { path: "/admin", label: "Super Admin Dashboard" },
 };
 
 const ROLE_COLORS = {
@@ -19,6 +20,7 @@ const ROLE_COLORS = {
   DTV_TECHNICIAN: "from-indigo-500 to-violet-600",
   MOBILE_TECHNICIAN: "from-emerald-500 to-teal-600",
   MANAGER: "from-blue-600 to-blue-800",
+  SUPER_ADMIN: "from-purple-600 to-indigo-700",
 };
 
 function getRoleLabel(role) {
@@ -29,6 +31,7 @@ function getRoleLabel(role) {
     DTV_TECHNICIAN: "DTV Tech",
     MOBILE_TECHNICIAN: "Mobile Tech",
     MANAGER: "Manager",
+    SUPER_ADMIN: "Super Admin",
   };
   return labels[role] || role;
 }

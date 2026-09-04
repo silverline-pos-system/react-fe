@@ -68,7 +68,7 @@ export default function Topbar({ onMenuClick = () => { } }) {
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={confirmLogout}
         title="Sign Out"
-        message="Are you sure you want to sign out of the Admin Dashboard?"
+        message="Are you sure you want to sign out of the Super Admin Dashboard?"
         type="danger"
         confirmLabel="Sign Out"
         cancelLabel="Cancel"
@@ -84,7 +84,7 @@ export default function Topbar({ onMenuClick = () => { } }) {
         </button>
 
         <div className="flex flex-col flex-1">
-          <h1 className="font-bold text-lg text-slate-800">Admin Dashboard</h1>
+          <h1 className="font-bold text-lg text-slate-800">Super Admin Dashboard</h1>
           <span className="text-xs text-slate-500">System Administration</span>
         </div>
 
