@@ -226,23 +226,6 @@ export const mapDamagesFromBackend = (backendDamages) => {
     return backendDamages.map(mapDamageFromBackend);
 };
 
-// ============= Dispatch MAPPERS =============
-
-export const mapDispatchFromBackend = (backendDispatch) => {
-    if (!backendDispatch) return null;
-    return convertKeysToSnake(backendDispatch);
-};
-
-export const mapDispatchToBackend = (frontendDispatch) => {
-    if (!frontendDispatch) return null;
-    return convertKeysToCamel(frontendDispatch);
-};
-
-export const mapDispatchesFromBackend = (backendDispatches) => {
-    if (!Array.isArray(backendDispatches)) return [];
-    return backendDispatches.map(mapDispatchFromBackend);
-};
-
 // ============= GRN MAPPERS =============
 
 export const mapGrnFromBackend = (backendGrn) => {
@@ -260,22 +243,6 @@ export const mapGrnsFromBackend = (backendGrns) => {
     return backendGrns.map(mapGrnFromBackend);
 };
 
-// ============= Dispatch ITEM MAPPERS =============
-
-export const mapDispatchItemFromBackend = (backendDispatchItem) => {
-    if (!backendDispatchItem) return null;
-    return convertKeysToSnake(backendDispatchItem);
-};
-
-export const mapDispatchItemToBackend = (frontendDispatchItem) => {
-    if (!frontendDispatchItem) return null;
-    return convertKeysToCamel(frontendDispatchItem);
-};
-
-export const mapDispatchItemsFromBackend = (backendDispatchItems) => {
-    if (!Array.isArray(backendDispatchItems)) return [];
-    return backendDispatchItems.map(mapDispatchItemFromBackend);
-};
 
 // ============= BRANCH MAPPERS =============
 
@@ -357,13 +324,6 @@ export default {
     mapDamageToBackend,
     mapDamagesFromBackend,
 
-    // Dispatch mappers
-    mapDispatchFromBackend,
-    mapDispatchToBackend,
-    mapDispatchesFromBackend,
-    mapDispatchItemFromBackend,
-    mapDispatchItemToBackend,
-    mapDispatchItemsFromBackend,
 
     // Generic mappers
     mapFromBackend,

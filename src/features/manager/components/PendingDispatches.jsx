@@ -27,14 +27,14 @@ export default function PendingDispatches() {
 
   return (
     <div className="bg-white border border-brand-border rounded-2xl shadow-sm p-5">
-      <div className="font-bold mb-3">Pending Dispatches</div>
+      <div className="font-bold mb-3">Pending GRNs</div>
       <div className="space-y-3">
         {loading ? (
-          <div className="text-sm text-brand-muted">Loading Dispatches...</div>
+          <div className="text-sm text-brand-muted">Loading GRNs...</div>
         ) : error ? (
           <div className="text-sm text-red-600">{error}</div>
         ) : dispatches.length === 0 ? (
-          <div className="text-sm text-brand-muted">No pending Dispatches</div>
+          <div className="text-sm text-brand-muted">No pending GRNs</div>
         ) : (
           dispatches.map((g) => (
             <div key={g.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
