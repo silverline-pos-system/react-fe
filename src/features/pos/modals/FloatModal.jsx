@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, User, ShieldCheck, Banknote, LogOut, Store } from 'lucide-react';
+import { Lock, User, ShieldCheck, Banknote, LogOut, Store, Package } from 'lucide-react';
 import { useNotification } from '@/features/pos/context/NotificationContext';
 import { authService } from '@/features/auth/services/authService';
 
@@ -278,6 +278,14 @@ export default function FloatModal({ onApprove, initialBranchId }) {
                                 ) : (
                                     "Approve & Open Shift"
                                 )}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => window.location.href = '/inventory'}
+                                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-3 rounded-lg border border-blue-200 uppercase tracking-wider text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <Package className="w-4 h-4" /> Go to Inventory
                             </button>
 
                             <button
