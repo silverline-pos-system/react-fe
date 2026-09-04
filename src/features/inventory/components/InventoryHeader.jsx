@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, LogOut, Menu, Store } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import SecondaryRoleBanner from '@/shared/components/SecondaryRoleBanner';
 
 const InventoryHeader = ({ branchName, userRole, userName, goToAdmin, goToManager, handleLogout, onMenuClick }) => {
+    const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -29,6 +31,15 @@ const InventoryHeader = ({ branchName, userRole, userName, goToAdmin, goToManage
             </div>
 
             <div className="flex items-center gap-3">
+                {(userRole === 'CASHIER' || userRole === 'SUPERVISOR') && (
+                    <button
+                        onClick={() => navigate('/pos')}
+                        className="group flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-blue-50 rounded-lg text-sm font-medium transition-all duration-300 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:border hover:border-blue-200"
+                    >
+                        <Store size={16} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
+                        <span className="hidden sm:inline text-slate-700 group-hover:text-blue-700 transition-colors">Back to POS</span>
+                    </button>
+                )}
                 {userRole === 'SUPER_ADMIN' && (
                     <button
                         onClick={goToAdmin}

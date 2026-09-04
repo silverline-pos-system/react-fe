@@ -17,7 +17,7 @@ import CategoryManagementScreen from './CategoryManagementScreen';
 import BrandManagementScreen from './BrandManagementScreen';
 import IMEISearchScreen from './IMEISearchScreen';
 
-import { POManagementScreen, SupplierManagementScreen, ItemDispatcherScreen } from '@/features/procurement';
+import { POManagementScreen, SupplierManagementScreen, GrnScreen } from '@/features/procurement';
 
 import StockOverviewScreen from './StockOverviewScreen';
 
@@ -559,7 +559,7 @@ const InventorySystemContent = () => {
         {
             id: 'procurement', label: 'Procurement', icon: FileText, screens: [
                 { id: 'po-mgmt', label: 'Purchase Orders', icon: FileText },
-                { id: 'dispatch-mgmt', label: 'Item Dispatcher', icon: CheckCircle },
+                { id: 'dispatch-mgmt', label: 'Goods Received (GRN)', icon: CheckCircle },
             ]
         },
         {
@@ -718,7 +718,7 @@ const InventorySystemContent = () => {
                     handleSaveEdit={handleSaveEdit}
                 />;
             case 'dispatch-mgmt':
-                return <ItemDispatcherScreen
+                return <GrnScreen
                     items={items}
                     suppliers={suppliers}
                     branches={branches}

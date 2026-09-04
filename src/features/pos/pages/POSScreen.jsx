@@ -8,7 +8,7 @@ import { useKeyboardShortcuts } from '@/features/pos/hooks/useKeyboardShortcuts'
 import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
 import { buildSaleOrder } from '@/features/pos/utils/buildSaleOrder';
 import { useShift } from '@/features/pos/hooks/useShift';
-import { User, LogOut, Bell, Store, Receipt, FileText } from 'lucide-react';
+import { User, LogOut, Bell, Store, Receipt, FileText, Package } from 'lucide-react';
 import BillPanel from '@/features/pos/components/BillPanel';
 import ControlPanel from '@/features/pos/components/ControlPanel';
 import ProductGrid from '@/features/pos/components/ProductGrid';
@@ -1448,6 +1448,14 @@ function POSContent() {
                             <span className="text-sm font-semibold">{rejectedPayouts.length}</span>
                         </button>
                     )}
+                    <button
+                        onClick={() => navigate('/inventory')}
+                        title="Go to Inventory"
+                        className="flex items-center gap-2 bg-blue-900/40 border border-blue-500/30 rounded-full py-1.5 px-4 hover:bg-blue-900/60 transition-colors"
+                    >
+                        <Package className="w-4 h-4 text-blue-300" />
+                        <span className="text-sm font-bold tracking-wide uppercase text-blue-100 hidden md:inline">Inventory</span>
+                    </button>
                     <SecondaryRoleBanner />
                     <button
                         onClick={handleOpenCashierSummary}

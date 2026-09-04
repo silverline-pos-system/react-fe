@@ -1,10 +1,10 @@
 import { createApiClient } from '@/lib/apiClient';
 import { API_V1 } from '@/lib/config';
 
-// Dispatch-payment endpoints. Shared interceptors come from createApiClient.
-const api = createApiClient(`${API_V1}/dispatch-payments`);
+// GRN-payment endpoints. Shared interceptors come from createApiClient.
+const api = createApiClient(`${API_V1}/grn-payments`);
 
-export const dispatchPaymentService = {
+export const grnPaymentService = {
     // Get payment requests for current branch (for POS display)
     getPaymentRequestsByBranch: (branchId) =>
         api.get('/branch', { params: { branchId } }),
@@ -61,4 +61,4 @@ export const dispatchPaymentService = {
         api.post(`/${requestId}/reject`, { reason })
 };
 
-export default dispatchPaymentService;
+export default grnPaymentService;

@@ -12,9 +12,9 @@ import {
     mapSupplierFromBackend,
     mapSupplierToBackend,
     mapSuppliersFromBackend,
-    mapDispatchFromBackend,
-    mapDispatchToBackend,
-    mapDispatchesFromBackend,
+    mapGrnFromBackend,
+    mapGrnToBackend,
+    mapGrnsFromBackend,
     mapSubCategoriesFromBackend,
     mapSubCategoryToBackend,
     mapSubCategoryFromBackend,
@@ -401,240 +401,90 @@ export const inventoryService = {
         }
     },
 
-    // ============= DispatchS =============
+    // ============= GRN (Goods Received Notes) =============
 
-    getDispatches: async (branchId) => {
+    getGrns: async (branchId) => {
         try {
-            console.log('[InventoryService] GET Dispatches for branch:', branchId);
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             const effectiveBranchId = branchId || user.branchId || 1;
-
-            const response = await api.get(`/inventory/dispatch/branch/${effectiveBranchId}`);
-            const dispatches = response.data.data || response.data;
-            const mapped = mapDispatchesFromBackend(dispatches);
-            console.log('[InventoryService] GET Dispatches mapped:', mapped.length, 'items');
-            return mapped;
+            const response = await api.get(`/inventory/grn/branch/${effectiveBranchId}`);
+            const grns = response.data.data || response.data;
+            return mapGrnsFromBackend(grns);
         } catch (error) {
-            console.error('[InventoryService] Error fetching Dispatches:', error);
+            console.error('[InventoryService] Error fetching GRNs:', error);
             throw error;
         }
     },
 
-    searchDispatches: async (filter = {}) => {
+    searchGrns: async (filter = {}) => {
         try {
-            console.log('[InventoryService] Search Dispatches with filter:', filter);
-            const backendFilter = mapDispatchToBackend(filter);
-            const response = await api.post('/inventory/dispatch/search', backendFilter);
-            const dispatches = response.data.data || response.data;
-            return mapDispatchesFromBackend(dispatches);
+            const backendFilter = mapGrnToBackend(filter);
+            const response = await api.post('/inventory/grn/search', backendFilter);
+            const grns = response.data.data || response.data;
+            return mapGrnsFromBackend(grns);
         } catch (error) {
-            console.error('[InventoryService] Error searching Dispatches:', error);
+            console.error('[InventoryService] Error searching GRNs:', error);
             throw error;
         }
     },
 
-    getPendingDispatches: async (branchId) => {
+    getGrnById: async (grnId) => {
         try {
-            console.log('[InventoryService] GET pending Dispatches for branch:', branchId);
-            const response = await api.get('/inventory/dispatch/pending', {
-                params: branchId ? { branchId } : {}
-            });
-            const dispatches = response.data.data || response.data;
-            return mapDispatchesFromBackend(dispatches);
+            const response = await api.get(`/inventory/grn/${grnId}`);
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
         } catch (error) {
-            console.error('[InventoryService] Error fetching pending Dispatches:', error);
+            console.error('[InventoryService] Error fetching GRN:', error);
             throw error;
         }
     },
 
-    getDispatchById: async (dispatchId) => {
+    createGrn: async (grnData) => {
         try {
-            console.log('[InventoryService] GET Dispatch by ID:', dispatchId);
-            const response = await api.get(`/inventory/dispatch/${dispatchId}`);
-            const dispatch = response.data.data || response.data;
-            return mapDispatchFromBackend(dispatch);
-        } catch (error) {
-            console.error('[InventoryService] Error fetching Dispatch:', error);
-            throw error;
-        }
-    },
-
-    createDispatch: async (dispatchData) => {
-        try {
-            console.log('[InventoryService] Create Dispatch:', dispatchData);
             const backendData = {
-                branchId: dispatchData.branch_id ?? dispatchData.branchId,
-                supplierId: dispatchData.supplier_id ?? dispatchData.supplierId,
-                poId: dispatchData.po_id ?? dispatchData.poId ?? null,
-                dispatchDate: dispatchData.dispatch_date ?? dispatchData.dispatchDate,
-                invoiceNo: dispatchData.invoice_no ?? dispatchData.invoiceNo,
-                invoiceDate: dispatchData.invoice_date ?? dispatchData.invoiceDate,
-                items: dispatchData.items.map(item => ({
+                branchId: grnData.branch_id ?? grnData.branchId,
+                supplierId: grnData.supplier_id ?? grnData.supplierId,
+                poId: grnData.po_id ?? grnData.poId ?? null,
+                grnDate: grnData.grn_date ?? grnData.grnDate ?? grnData.dispatch_date,
+                invoiceNo: grnData.invoice_no ?? grnData.invoiceNo,
+                invoiceDate: grnData.invoice_date ?? grnData.invoiceDate,
+                items: grnData.items.map(item => ({
                     productId: item.product_id ?? item.productId,
                     batchCode: item.batch_code ?? item.batchCode ?? null,
                     expiryDate: item.expiry_date ?? item.expiryDate ?? null,
-                    qtyReceived: item.quantity ?? item.qtyReceived,
-                    qtyDispatched: item.quantity ?? item.qtyReceived ?? item.qtyDispatched,
+                    qtyReceived: item.quantity ?? item.qty_received ?? item.qtyReceived,
                     unitPrice: item.unit_price ?? item.unitPrice,
                     sellingPrice: item.selling_price ?? item.sellingPrice ?? null,
                     mrp: item.mrp ?? null,
                     serialNo: item.serial_no ?? item.serialNo ?? null
                 }))
             };
-
-            console.log('[InventoryService] Create Dispatch backend data:', backendData);
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const userId = user.userId || user.id || 1;
-
-            const response = await api.post('/inventory/dispatch', backendData, {
-                headers: {
-                    'User-ID': userId
-                }
-            });
-
-            const dispatch = response.data.data || response.data;
-            console.log('[InventoryService] Create Dispatch response:', dispatch);
-            return mapDispatchFromBackend(dispatch);
+            const response = await api.post('/inventory/grn', backendData);
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
         } catch (error) {
-            console.error('[InventoryService] Error creating Dispatch:', error);
+            console.error('[InventoryService] Error creating GRN:', error);
             throw error;
         }
     },
 
-    updateDispatch: async (dispatchId, dispatchData) => {
+    postGrn: async (grnId) => {
         try {
-            console.log('[InventoryService] Update Dispatch:', dispatchId, dispatchData);
-            const backendData = {
-                dispatchDate: dispatchData.dispatch_date,
-                invoiceNo: dispatchData.invoice_no,
-                invoiceDate: dispatchData.invoice_date,
-                items: dispatchData.items?.map(item => ({
-                    productId: item.product_id,
-                    batchCode: item.batch_code || null,
-                    expiryDate: item.expiry_date || null,
-                    qtyReceived: item.quantity,
-                    unitPrice: item.unit_price
-                }))
-            };
-
-            const response = await api.put(`/inventory/dispatch/${dispatchId}`, backendData);
-            const dispatch = response.data.data || response.data;
-            return mapDispatchFromBackend(dispatch);
+            const response = await api.put(`/inventory/grn/${grnId}/post`, {});
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
         } catch (error) {
-            console.error('[InventoryService] Error updating Dispatch:', error);
+            console.error('[InventoryService] Error posting GRN:', error);
             throw error;
         }
     },
 
-    approveDispatch: async (dispatchId) => {
+    deleteGrn: async (grnId) => {
         try {
-            console.log('[InventoryService] Approve Dispatch:', dispatchId);
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const userId = user.userId || user.id || 1;
-
-            const response = await api.put(`/inventory/dispatch/${dispatchId}/approve`, {}, {
-                headers: {
-                    'User-ID': userId
-                }
-            });
-            const dispatch = response.data.data || response.data;
-            return mapDispatchFromBackend(dispatch);
-        } catch (error) {
-            console.error('[InventoryService] Error approving Dispatch:', error);
-            throw error;
-        }
-    },
-
-    rejectDispatch: async (dispatchId, reason) => {
-        try {
-            console.log('[InventoryService] Reject Dispatch:', dispatchId, reason);
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const userId = user.userId || user.id || 1;
-
-            const response = await api.put(`/inventory/dispatch/${dispatchId}/reject`, {}, {
-                headers: {
-                    'User-ID': userId
-                },
-                params: { reason }
-            });
-            const dispatch = response.data.data || response.data;
-            return mapDispatchFromBackend(dispatch);
-        } catch (error) {
-            console.error('[InventoryService] Error rejecting Dispatch:', error);
-            throw error;
-        }
-    },
-
-    updateDispatchPaymentStatus: async (dispatchId, paymentStatus) => {
-        try {
-            console.log('[InventoryService] Update Dispatch payment status:', dispatchId, paymentStatus);
-            const response = await api.put(`/inventory/dispatch/${dispatchId}/payment-status`, null, {
-                params: { paymentStatus }
-            });
-            const dispatch = response.data.data || response.data;
-            return mapDispatchFromBackend(dispatch);
-        } catch (error) {
-            console.error('[InventoryService] Error updating Dispatch payment status:', error);
-            throw error;
-        }
-    },
-
-    deleteDispatch: async (dispatchId) => {
-        try {
-            console.log('[InventoryService] Delete Dispatch:', dispatchId);
-            const response = await api.delete(`/inventory/dispatch/${dispatchId}`);
+            const response = await api.delete(`/inventory/grn/${grnId}`);
             return response.data;
         } catch (error) {
-            console.error('[InventoryService] Error deleting Dispatch:', error);
-            throw error;
-        }
-    },
-
-    getDispatchStats: async (branchId, period) => {
-        try {
-            console.log('[InventoryService] GET Dispatch stats:', branchId, period);
-            const params = period ? { period } : {};
-            const response = await api.get(`/inventory/dispatch/branch/${branchId}/stats`, { params });
-            const stats = response.data.data || response.data;
-            return mapDispatchFromBackend(stats);
-        } catch (error) {
-            console.error('[InventoryService] Error fetching Dispatch stats:', error);
-            throw error;
-        }
-    },
-
-    getDispatchItemsByProduct: async (productId, branchId) => {
-        try {
-            console.log('[InventoryService] GET Dispatch items by product:', productId, branchId);
-            const params = branchId ? { branchId } : {};
-            const response = await api.get(`/inventory/dispatch/product/${productId}/items`, { params });
-            const items = response.data.data || response.data;
-            return mapDispatchesFromBackend(items);
-        } catch (error) {
-            console.error('[InventoryService] Error fetching Dispatch items by product:', error);
-            throw error;
-        }
-    },
-
-    getDispatchesBySupplier: async (supplierId) => {
-        try {
-            console.log('[InventoryService] GET Dispatches by supplier:', supplierId);
-            const response = await api.get(`/inventory/dispatch/supplier/${supplierId}`);
-            const dispatches = response.data.data || response.data;
-            return mapDispatchesFromBackend(dispatches);
-        } catch (error) {
-            console.error('[InventoryService] Error fetching Dispatches by supplier:', error);
-            throw error;
-        }
-    },
-
-    checkDispatchNumber: async (dispatchNo) => {
-        try {
-            console.log('[InventoryService] Check Dispatch number:', dispatchNo);
-            const response = await api.get(`/inventory/dispatch/check-number/${dispatchNo}`);
-            return response.data.data || response.data;
-        } catch (error) {
-            console.error('[InventoryService] Error checking Dispatch number:', error);
+            console.error('[InventoryService] Error deleting GRN:', error);
             throw error;
         }
     },
@@ -700,18 +550,6 @@ export const inventoryService = {
             };
         } catch (error) {
             console.error('Error looking up serials:', error);
-            throw error;
-        }
-    },
-
-    getDispatchListPdf: async () => {
-        try {
-            const response = await api.get('/inventory/dispatch/reports/pdf', {
-                responseType: 'blob'
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error downloading Dispatch List PDF:', error);
             throw error;
         }
     },

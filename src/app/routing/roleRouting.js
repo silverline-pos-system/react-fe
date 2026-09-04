@@ -4,8 +4,6 @@ export function getRoleDefaultRoute(role) {
       return '/admin';
     case 'MANAGER':
       return '/manager';
-    case 'STORE_KEEPER':
-      return '/inventory';
     case 'DTV_TECHNICIAN':
       return '/dtv-tech';
     case 'MOBILE_TECHNICIAN':

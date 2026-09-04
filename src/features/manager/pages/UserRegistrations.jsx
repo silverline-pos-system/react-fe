@@ -7,7 +7,6 @@ import {
 import { AlertTriangle } from 'lucide-react';
 
 const ROLE_OPTIONS = [
-  "STORE_KEEPER",
   "CASHIER",
   "SUPERVISOR",
   "DTV_TECHNICIAN",

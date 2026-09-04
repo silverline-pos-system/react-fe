@@ -56,7 +56,7 @@ export default function AppRoutes() {
         <Route
           path="/inventory"
           element={
-            <ProtectedRoute allowedRoles={['STORE_KEEPER']}>
+            <ProtectedRoute allowedRoles={['CASHIER', 'SUPERVISOR']}>
               <InventorySystem />
             </ProtectedRoute>
           }

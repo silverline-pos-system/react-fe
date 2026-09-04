@@ -10,7 +10,7 @@ import { useEnterKeyNavigation } from '@/shared/hooks/useEnterKeyNavigation';
 import Pagination from '@/shared/components/Pagination';
 import api from '@/lib/api';
 
-const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) => {
+const GrnScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) => {
     const { success, error, warning, confirm } = useInventoryNotification();
 
     const [loading, setLoading] = useState(false);
@@ -64,28 +64,19 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
 
     const handleAddItemKeyDown = useEnterKeyNavigation(() => handleAddItem());
 
-    const loadDispatchHistory = async () => {
+    const loadGrnHistory = async () => {
         try {
             setLoading(true);
-            const branchIds = (branches || []).map((b) => b.branch_id).filter(Boolean);
-            const historyResponses = await Promise.all(
-                branchIds.map(async (branchId) => {
-                    try {
-                        const data = await inventoryService.getDispatches(branchId);
-                        return Array.isArray(data) ? data : [];
-                    } catch {
-                        return [];
-                    }
-                })
-            );
-
-            const merged = historyResponses.flat();
-            const deduped = Array.from(new Map(merged.map((x) => [x.dispatch_id, x])).values());
-            deduped.sort((a, b) => new Date(b.dispatch_date) - new Date(a.dispatch_date));
+            // One call across all branches (backend returns all when no branch filter).
+            const data = await inventoryService.searchGrns({});
+            const list = Array.isArray(data) ? data : [];
+            const deduped = Array.from(new Map(list.map((x) => [x.grn_id, x])).values());
+            deduped.sort((a, b) => new Date(b.grn_date) - new Date(a.grn_date));
             setDispatches(deduped);
             return deduped;
         } catch (err) {
-            console.error('Failed to load dispatch history', err);
+            console.error('Failed to load GRN history', err);
+            error('Failed to load GRN history.');
             return [];
         } finally {
             setLoading(false);
@@ -106,7 +97,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         }
 
         const historyQty = history
-            .filter((dispatch) => String(dispatch.po_id || dispatch.poId) === String(poId) && dispatch.status === 'APPROVED')
+            .filter((dispatch) => String(dispatch.po_id || dispatch.poId) === String(poId) && dispatch.status === 'POSTED')
             .flatMap((dispatch) => dispatch.items || [])
             .filter((item) => String(item.product_id || item.productId) === String(productId))
             .reduce((sum, item) => sum + Number(item.qtyDispatched || item.qty_dispatched || item.qty_received || item.quantity || item.qtyReceived || 0), 0);
@@ -171,7 +162,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
 
     useEffect(() => {
         const init = async () => {
-            const historySnapshot = await loadDispatchHistory();
+            const historySnapshot = await loadGrnHistory();
             try {
                 const batchData = await storeService.getBatches();
                 setBatches(batchData || []);
@@ -227,7 +218,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                 const matchesStatus = !historyStatusFilter || dispatch.status === historyStatusFilter;
                 const matchesBranch = !historyBranchFilter || String(dispatch.branch_id) === String(historyBranchFilter);
 
-                const date = dispatch.dispatch_date ? new Date(dispatch.dispatch_date) : null;
+                const date = dispatch.grn_date ? new Date(dispatch.grn_date) : null;
                 const from = historyDateFrom ? new Date(historyDateFrom) : null;
                 const to = historyDateTo ? new Date(historyDateTo) : null;
                 const matchesFrom = !from || (date && date >= from);
@@ -240,7 +231,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     .toLowerCase();
                 const matchesSearch =
                     !search ||
-                    (dispatch.dispatch_no || '').toLowerCase().includes(search) ||
+                    (dispatch.grn_no || '').toLowerCase().includes(search) ||
                     (dispatch.invoice_no || '').toLowerCase().includes(search) ||
                     supplierName.toLowerCase().includes(search) ||
                     itemNameText.includes(search);
@@ -352,7 +343,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         const generatedAt = new Date().toLocaleString();
 
         doc.setFontSize(14);
-        doc.text('Dispatch History Report', 40, 36);
+        doc.text('GRN History Report', 40, 36);
         doc.setFontSize(9);
         doc.text(`Generated: ${generatedAt}`, 40, 52);
         doc.text(
@@ -370,11 +361,11 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             const supplierName = suppliers.find((s) => s.supplier_id === dispatch.supplier_id)?.name || '-';
 
             return [
-                dispatch.invoice_no || dispatch.dispatch_no || '-',
+                dispatch.invoice_no || dispatch.grn_no || '-',
                 branchName,
                 itemName,
                 String(qty),
-                new Date(dispatch.dispatch_date).toLocaleDateString(),
+                new Date(dispatch.grn_date).toLocaleDateString(),
                 `LKR ${unitSellingPrice.toFixed(2)}`,
                 supplierName,
                 dispatch.status || '-'
@@ -392,7 +383,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         doc.save(`dispatch-history-${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
-    const buildDispatchReference = (branchId) => {
+    const buildGrnReference = (branchId) => {
         const selectedPO = approvedPOs.find((po) => String(po.poId) === String(formData.po_id));
         const branchCode = (branches.find((b) => String(b.branch_id) === String(branchId))?.code || `B${branchId}`)
             .toString()
@@ -404,7 +395,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
             .toUpperCase()
             .slice(0, 12);
         const datePart = formData.dispatch_date ? formData.dispatch_date.replace(/-/g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        return `DSP-${branchCode}-${poNo}-${datePart}`;
+        return `GRN-${branchCode}-${poNo}-${datePart}`;
     };
 
     const handlePOSelect = (poId) => {
@@ -752,7 +743,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                         supplier_id: Number(formData.supplier_id),
                         branch_id: Number(branchId),
                         dispatch_date: formData.dispatch_date,
-                        invoice_no: formData.invoice_no || buildDispatchReference(branchId),
+                        invoice_no: formData.invoice_no || buildGrnReference(branchId),
                         invoice_date: formData.invoice_date,
                         notes: formData.notes,
                         items: flattened.map((x) => ({
@@ -767,13 +758,13 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                         }))
                     };
 
-                    const created = await inventoryService.createDispatch(payload);
-                    const createdId = created?.dispatch_id || created?.dispatchId;
+                    const created = await inventoryService.createGrn(payload);
+                    const createdId = created?.grn_id || created?.grnId;
                     if (!createdId) {
                         throw new Error('Dispatch created but ID was not returned for auto-finalize');
                     }
 
-                    await inventoryService.approveDispatch(createdId);
+                    await inventoryService.postGrn(createdId);
                     successCount += 1;
                 } catch (branchErr) {
                     const msg = branchErr?.response?.data?.message || branchErr?.message || 'Dispatch failed';
@@ -801,11 +792,11 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     items: []
                 }));
                 setSelectedPOItems([]);
-                const historySnapshot = await loadDispatchHistory();
+                const historySnapshot = await loadGrnHistory();
                 await loadEligiblePOs(historySnapshot);
             } else if (successCount > 0) {
                 error(`Partial dispatch success (${successCount}/${branchIds.length}).\n${failures.join('\n')}`);
-                const historySnapshot = await loadDispatchHistory();
+                const historySnapshot = await loadGrnHistory();
                 await loadEligiblePOs(historySnapshot);
             } else {
                 error(`Dispatch failed.\n${failures.join('\n')}`);
@@ -819,8 +810,8 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                    <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-800 to-blue-500">Item Dispatcher</h2>
-                    <p className="text-gray-600 text-sm mt-1">Real-world branch dispatch from approved and paid POs</p>
+                    <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-800 to-blue-500">Goods Received Note (GRN)</h2>
+                    <p className="text-gray-600 text-sm mt-1">Receive supplier deliveries against approved POs into a branch</p>
                 </div>
                 {loading && <span className="text-sm font-semibold text-blue-700">Processing...</span>}
             </div>
@@ -852,7 +843,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Dispatch Date</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">GRN Date</label>
                                 <input
                                     type="date"
                                     className="w-full border border-gray-300 rounded-xl p-3"
@@ -865,7 +856,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                 <input
                                     type="text"
                                     className="w-full border border-gray-300 rounded-xl p-3"
-                                    placeholder="Auto: DSP-BRANCH-PO-YYYYMMDD"
+                                    placeholder="Auto: GRN-BRANCH-PO-YYYYMMDD"
                                     value={formData.invoice_no}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, invoice_no: e.target.value }))}
                                 />
@@ -874,7 +865,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     </div>
 
                     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">2. Dispatch Lines</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">2. Receiving Lines</h3>
 
                         <form onKeyDown={handleAddItemKeyDown}>
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
@@ -1275,7 +1266,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">Product</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-slate-500">SKU</th>
                                         <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Ordered Qty</th>
-                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Dispatch Qty</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Received Qty</th>
                                         <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Unit Price</th>
                                         <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Discount</th>
                                         <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500 text-right">Total Price</th>
@@ -1322,7 +1313,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
 
                 <div className="lg:col-span-1">
                     <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
-                        <h3 className="text-lg font-semibold mb-3">Branch Dispatch Summary</h3>
+                        <h3 className="text-lg font-semibold mb-3">Receiving Summary</h3>
                         <div className="text-xs font-semibold text-gray-700 mb-3 rounded-lg bg-blue-50 border border-blue-100 p-2">
                             FROM: Warehouse
                         </div>
@@ -1354,13 +1345,13 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                 disabled={loading}
                                 className="w-full bg-brand-primary text-white py-3 rounded-lg font-semibold hover:bg-brand-secondary flex items-center justify-center gap-2 disabled:opacity-60"
                             >
-                                <Save size={18} /> Dispatch Items
+                                <Save size={18} /> Receive & Post
                             </button>
                             <button
                                 onClick={() => setFormData((prev) => ({ ...prev, items: [] }))}
                                 className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50"
                             >
-                                Clear Dispatch Lines
+                                Clear Lines
                             </button>
                         </div>
                     </div>
@@ -1371,7 +1362,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                 <div className="px-6 py-4 bg-slate-50 border-b border-gray-200">
                     <div className="flex items-center justify-between gap-3">
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <History size={20} className="text-emerald-600" /> Dispatch History
+                            <History size={20} className="text-emerald-600" /> GRN History
                         </h3>
                         <button
                             type="button"
@@ -1389,9 +1380,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Status</label>
                             <select className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value)}>
                                 <option value="">All</option>
-                                <option value="APPROVED">Approved</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="REJECTED">Rejected</option>
+                                <option value="POSTED">Posted</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="CANCELLED">Cancelled</option>
                             </select>
                         </div>
                         <div>
@@ -1430,7 +1421,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Dispatch No</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">GRN No</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">To</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Item Name</th>
                             <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Quantity</th>
@@ -1442,8 +1433,8 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                     <tbody className="divide-y divide-gray-200">
                         {paginatedHistory.length > 0 ? (
                             paginatedHistory.map((dispatch) => (
-                                <tr key={dispatch.dispatch_id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm font-mono font-medium text-brand-primary">{dispatch.invoice_no || dispatch.dispatch_no}</td>
+                                <tr key={dispatch.grn_id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 text-sm font-mono font-medium text-brand-primary">{dispatch.invoice_no || dispatch.grn_no}</td>
                                     <td className="px-6 py-4 text-sm text-gray-900">{branches.find((b) => String(b.branch_id) === String(dispatch.branch_id))?.name || `Branch ${dispatch.branch_id}`}</td>
                                     <td className="px-6 py-4 text-sm text-gray-700">
                                         {(() => {
@@ -1463,7 +1454,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                     <td className="px-6 py-4 text-sm text-gray-900 text-right font-semibold">
                                         {(dispatch.items || []).reduce((sum, item) => sum + Number(item.qty_received || item.quantity || 0), 0)}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{new Date(dispatch.dispatch_date).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">{new Date(dispatch.grn_date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 text-sm font-mono text-right font-medium text-gray-900">
                                         {(() => {
                                             const firstItem = (dispatch.items || [])[0];
@@ -1474,9 +1465,9 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full inline-block ${
-                                            dispatch.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                                            dispatch.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                            dispatch.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                            dispatch.status === 'POSTED' ? 'bg-green-100 text-green-700' :
+                                            dispatch.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
+                                            dispatch.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
                                         }`}>
                                             {dispatch.status}
                                         </span>
@@ -1489,7 +1480,7 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
                                     <div className="flex flex-col items-center justify-center">
                                         <History size={40} className="text-gray-300 mb-3" />
                                         <p className="text-base font-medium text-gray-900">No dispatch records found</p>
-                                        <p className="text-sm text-gray-500 mt-1">Dispatch items to populate history.</p>
+                                        <p className="text-sm text-gray-500 mt-1">Receive items to populate history.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -1510,4 +1501,4 @@ const ItemDispatcherScreen = ({ items, suppliers, branches, onOpenIMEIFinder }) 
     );
 };
 
-export default ItemDispatcherScreen;
+export default GrnScreen;
