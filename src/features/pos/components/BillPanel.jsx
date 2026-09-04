@@ -12,6 +12,14 @@ export default function BillPanel({ cart, customer, onItemClick, onDetachCustome
     }
   }, [cart]);
 
+  // Keep the keyboard-selected row visible when navigating with the arrow keys.
+  useEffect(() => {
+    if (selectedIndex === null || selectedIndex === undefined) return;
+    const container = scrollRef.current;
+    const row = container?.children?.[selectedIndex];
+    row?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIndex]);
+
   useEffect(() => {
     if (editingIndex === null || editingIndex === undefined) return;
     const currentItem = cart[editingIndex];
@@ -136,13 +144,13 @@ export default function BillPanel({ cart, customer, onItemClick, onDetachCustome
                 className={`grid grid-cols-12 gap-1 px-3 py-2.5 border-b text-sm items-start cursor-pointer group transition-colors ${isReturnItem
                     ? 'bg-red-50 border-red-200 hover:bg-red-100'
                     : selectedIndex === index
-                      ? 'bg-blue-100 ring-1 ring-blue-300 border-slate-100'
+                      ? 'bg-blue-100 ring-2 ring-inset ring-blue-400 border-slate-100'
                       : 'hover:bg-blue-50 border-slate-100'
                   }`}
               >
-                {/* Line Number */}
-                <div className={`col-span-1 text-center font-mono text-xs pt-0.5 ${isReturnItem ? 'text-red-500 font-bold' : 'text-slate-400 group-hover:text-blue-500'}`}>
-                  {isReturnItem ? '↩' : index + 1}
+                {/* Line Number (shows a caret on the keyboard-selected row) */}
+                <div className={`col-span-1 text-center font-mono text-xs pt-0.5 ${isReturnItem ? 'text-red-500 font-bold' : selectedIndex === index ? 'text-blue-600 font-bold' : 'text-slate-400 group-hover:text-blue-500'}`}>
+                  {isReturnItem ? '↩' : selectedIndex === index ? '▸' : index + 1}
                 </div>
 
                 {/* Description with discount/tax indicators */}
