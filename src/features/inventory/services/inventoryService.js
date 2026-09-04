@@ -15,6 +15,9 @@ import {
     mapDispatchFromBackend,
     mapDispatchToBackend,
     mapDispatchesFromBackend,
+    mapGrnFromBackend,
+    mapGrnToBackend,
+    mapGrnsFromBackend,
     mapSubCategoriesFromBackend,
     mapSubCategoryToBackend,
     mapSubCategoryFromBackend,
@@ -635,6 +638,94 @@ export const inventoryService = {
             return response.data.data || response.data;
         } catch (error) {
             console.error('[InventoryService] Error checking Dispatch number:', error);
+            throw error;
+        }
+    },
+
+    // ============= GRN (Goods Received Notes) =============
+
+    getGrns: async (branchId) => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const effectiveBranchId = branchId || user.branchId || 1;
+            const response = await api.get(`/inventory/grn/branch/${effectiveBranchId}`);
+            const grns = response.data.data || response.data;
+            return mapGrnsFromBackend(grns);
+        } catch (error) {
+            console.error('[InventoryService] Error fetching GRNs:', error);
+            throw error;
+        }
+    },
+
+    searchGrns: async (filter = {}) => {
+        try {
+            const backendFilter = mapGrnToBackend(filter);
+            const response = await api.post('/inventory/grn/search', backendFilter);
+            const grns = response.data.data || response.data;
+            return mapGrnsFromBackend(grns);
+        } catch (error) {
+            console.error('[InventoryService] Error searching GRNs:', error);
+            throw error;
+        }
+    },
+
+    getGrnById: async (grnId) => {
+        try {
+            const response = await api.get(`/inventory/grn/${grnId}`);
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
+        } catch (error) {
+            console.error('[InventoryService] Error fetching GRN:', error);
+            throw error;
+        }
+    },
+
+    createGrn: async (grnData) => {
+        try {
+            const backendData = {
+                branchId: grnData.branch_id ?? grnData.branchId,
+                supplierId: grnData.supplier_id ?? grnData.supplierId,
+                poId: grnData.po_id ?? grnData.poId ?? null,
+                grnDate: grnData.grn_date ?? grnData.grnDate ?? grnData.dispatch_date,
+                invoiceNo: grnData.invoice_no ?? grnData.invoiceNo,
+                invoiceDate: grnData.invoice_date ?? grnData.invoiceDate,
+                items: grnData.items.map(item => ({
+                    productId: item.product_id ?? item.productId,
+                    batchCode: item.batch_code ?? item.batchCode ?? null,
+                    expiryDate: item.expiry_date ?? item.expiryDate ?? null,
+                    qtyReceived: item.quantity ?? item.qty_received ?? item.qtyReceived,
+                    unitPrice: item.unit_price ?? item.unitPrice,
+                    sellingPrice: item.selling_price ?? item.sellingPrice ?? null,
+                    mrp: item.mrp ?? null,
+                    serialNo: item.serial_no ?? item.serialNo ?? null
+                }))
+            };
+            const response = await api.post('/inventory/grn', backendData);
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
+        } catch (error) {
+            console.error('[InventoryService] Error creating GRN:', error);
+            throw error;
+        }
+    },
+
+    postGrn: async (grnId) => {
+        try {
+            const response = await api.put(`/inventory/grn/${grnId}/post`, {});
+            const grn = response.data.data || response.data;
+            return mapGrnFromBackend(grn);
+        } catch (error) {
+            console.error('[InventoryService] Error posting GRN:', error);
+            throw error;
+        }
+    },
+
+    deleteGrn: async (grnId) => {
+        try {
+            const response = await api.delete(`/inventory/grn/${grnId}`);
+            return response.data;
+        } catch (error) {
+            console.error('[InventoryService] Error deleting GRN:', error);
             throw error;
         }
     },

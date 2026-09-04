@@ -243,6 +243,23 @@ export const mapDispatchesFromBackend = (backendDispatches) => {
     return backendDispatches.map(mapDispatchFromBackend);
 };
 
+// ============= GRN MAPPERS =============
+
+export const mapGrnFromBackend = (backendGrn) => {
+    if (!backendGrn) return null;
+    return convertKeysToSnake(backendGrn);
+};
+
+export const mapGrnToBackend = (frontendGrn) => {
+    if (!frontendGrn) return null;
+    return convertKeysToCamel(frontendGrn);
+};
+
+export const mapGrnsFromBackend = (backendGrns) => {
+    if (!Array.isArray(backendGrns)) return [];
+    return backendGrns.map(mapGrnFromBackend);
+};
+
 // ============= Dispatch ITEM MAPPERS =============
 
 export const mapDispatchItemFromBackend = (backendDispatchItem) => {
