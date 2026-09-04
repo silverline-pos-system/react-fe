@@ -6,7 +6,7 @@ import {
     Shield, ArrowRight, Loader2, RefreshCw, Banknote,
     CreditCard, FileText, Hash, ExternalLink
 } from 'lucide-react';
-import { dispatchPaymentService } from '@/features/pos/services/dispatchPaymentService';
+import { grnPaymentService } from '@/features/pos/services/grnPaymentService';
 
 const STATUS_CONFIG = {
     'PENDING': {
@@ -82,7 +82,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await dispatchPaymentService.getPaymentRequestsByBranch(branchId);
+            const res = await grnPaymentService.getPaymentRequestsByBranch(branchId);
             const data = res.data?.data || res.data || [];
             setRequests(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -108,7 +108,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
 
         setTransferring(true);
         try {
-            await dispatchPaymentService.transferToManager(selectedRequest.requestId, {
+            await grnPaymentService.transferToManager(selectedRequest.requestId, {
                 supervisorUsername: supervisorCreds.username,
                 supervisorPassword: supervisorCreds.password,
                 notes: transferNotes,
@@ -139,7 +139,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
 
         setPaying(true);
         try {
-            await dispatchPaymentService.transferToManager(selectedRequest.requestId, {
+            await grnPaymentService.transferToManager(selectedRequest.requestId, {
                 supervisorUsername: supervisorCreds.username,
                 supervisorPassword: supervisorCreds.password,
                 notes: `PAYOUT REQUEST\n${paymentForm.notes}\nPayment Method: ${paymentForm.paymentMethod}\nReference: ${paymentForm.paymentReference || 'N/A'}`,
@@ -216,7 +216,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
                                     <Receipt className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-white">Dispatch Payment Requests</h2>
+                                    <h2 className="text-lg font-bold text-white">GRN Payment Requests</h2>
                                     <p className="text-sm text-indigo-100">
                                         {pendingRequests.length} pending request{pendingRequests.length !== 1 ? 's' : ''}
                                     </p>
@@ -251,7 +251,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
                                         <Receipt className="w-8 h-8 text-gray-400" />
                                     </div>
                                     <h3 className="text-lg font-semibold text-gray-700">No Payment Requests</h3>
-                                    <p className="text-gray-500 mt-1">When Dispatches are approved, payment requests will appear here.</p>
+                                    <p className="text-gray-500 mt-1">When GRNs are posted, payment requests will appear here.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-6">
@@ -274,7 +274,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
                                                             <div className="flex items-start justify-between">
                                                                 <div className="flex-1">
                                                                     <div className="flex items-center gap-3 mb-2">
-                                                                        <span className="font-bold text-gray-800">{request.dispatchNo}</span>
+                                                                        <span className="font-bold text-gray-800">{request.grnNo}</span>
                                                                         <span className={`px-2 py-0.5 text-xs font-bold rounded ${priorityConfig.color}`}>
                                                                             {priorityConfig.label}
                                                                         </span>
@@ -350,7 +350,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
                                                             className="bg-gray-50 border border-gray-100 rounded-lg p-3 flex items-center justify-between"
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <span className="font-medium text-gray-700">{request.dispatchNo}</span>
+                                                                <span className="font-medium text-gray-700">{request.grnNo}</span>
                                                                 <span className="text-gray-500">{request.supplierName}</span>
                                                                 <span className="font-semibold text-gray-800">
                                                                     {formatCurrency(request.amount)}
@@ -391,7 +391,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
 
                         <div className="bg-emerald-50 rounded-lg p-3 mb-4">
                             <div className="text-sm text-gray-600">
-                                <strong>{selectedRequest.dispatchNo}</strong> - {selectedRequest.supplierName}
+                                <strong>{selectedRequest.grnNo}</strong> - {selectedRequest.supplierName}
                             </div>
                             <div className="text-lg font-bold text-emerald-700 mt-1">
                                 {formatCurrency(selectedRequest.amount)}
@@ -534,7 +534,7 @@ export default function DispatchPaymentModal({ isOpen, onClose, branchId, onNoti
 
                         <div className="bg-indigo-50 rounded-lg p-3 mb-4">
                             <div className="text-sm text-gray-600">
-                                <strong>{selectedRequest.dispatchNo}</strong> - {selectedRequest.supplierName}
+                                <strong>{selectedRequest.grnNo}</strong> - {selectedRequest.supplierName}
                             </div>
                             <div className="text-lg font-bold text-indigo-700 mt-1">
                                 {formatCurrency(selectedRequest.amount)}

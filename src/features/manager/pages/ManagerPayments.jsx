@@ -5,7 +5,7 @@ import {
     Loader2, RefreshCw, CreditCard, Banknote, FileText,
     ChevronDown, ChevronUp, X, Search
 } from 'lucide-react';
-import { dispatchPaymentService } from '@/features/pos/services/dispatchPaymentService';
+import { grnPaymentService } from '@/features/pos/services/grnPaymentService';
 import useEscapeClose from '@/shared/hooks/useEscapeClose';
 
 const STATUS_CONFIG = {
@@ -82,14 +82,14 @@ export default function ManagerPayments() {
         try {
             let res;
             if (filter === 'pending') {
-                res = await dispatchPaymentService.getManagerPaymentRequests();
+                res = await grnPaymentService.getManagerPaymentRequests();
             } else if (filter === 'paid') {
-                res = await dispatchPaymentService.getPaymentRequestsByStatus('PAID');
+                res = await grnPaymentService.getPaymentRequestsByStatus('PAID');
             } else {
                 const [pending, paid, rejected] = await Promise.all([
-                    dispatchPaymentService.getManagerPaymentRequests(),
-                    dispatchPaymentService.getPaymentRequestsByStatus('PAID'),
-                    dispatchPaymentService.getPaymentRequestsByStatus('REJECTED')
+                    grnPaymentService.getManagerPaymentRequests(),
+                    grnPaymentService.getPaymentRequestsByStatus('PAID'),
+                    grnPaymentService.getPaymentRequestsByStatus('REJECTED')
                 ]);
                 const all = [
                     ...(pending.data?.data || []),
@@ -145,7 +145,7 @@ export default function ManagerPayments() {
 
         setProcessing(true);
         try {
-            await dispatchPaymentService.processPayment(selectedRequest.requestId, {
+            await grnPaymentService.processPayment(selectedRequest.requestId, {
                 paymentMethod: paymentForm.paymentMethod,
                 paymentReference: paymentForm.paymentReference,
                 amountPaid: selectedRequest.amount,
@@ -166,7 +166,7 @@ export default function ManagerPayments() {
 
     const handleReject = async (requestId, reason) => {
         try {
-            await dispatchPaymentService.rejectRequest(requestId, reason || 'Rejected by manager');
+            await grnPaymentService.rejectRequest(requestId, reason || 'Rejected by manager');
             fetchRequests();
         } catch (err) {
             console.error('Rejection failed:', err);
@@ -197,7 +197,7 @@ export default function ManagerPayments() {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         return (
-            r.dispatchNo?.toLowerCase().includes(q) ||
+            r.grnNo?.toLowerCase().includes(q) ||
             r.supplierName?.toLowerCase().includes(q) ||
             r.invoiceNo?.toLowerCase().includes(q)
         );
@@ -339,7 +339,7 @@ export default function ManagerPayments() {
                                     return (
                                         <tr key={request.requestId} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-800">{request.dispatchNo}</div>
+                                                <div className="font-semibold text-gray-800">{request.grnNo}</div>
                                                 <div className="text-sm text-gray-500">{request.invoiceNo || '-'}</div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -436,7 +436,7 @@ export default function ManagerPayments() {
                         <div className="p-6">
                             <div className="bg-emerald-50 rounded-lg p-4 mb-6">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="font-semibold text-gray-800">{selectedRequest.dispatchNo}</span>
+                                    <span className="font-semibold text-gray-800">{selectedRequest.grnNo}</span>
                                     <span className="text-sm text-gray-600">{selectedRequest.invoiceNo}</span>
                                 </div>
                                 <div className="text-sm text-gray-600">{selectedRequest.supplierName}</div>
