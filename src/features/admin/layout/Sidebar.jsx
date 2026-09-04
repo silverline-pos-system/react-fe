@@ -1,8 +1,7 @@
 import { NavLink } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { LayoutGrid, Users, Building2, Activity, FileText, KeyRound, Puzzle, Sparkles, Palette } from "lucide-react";
-import { getPasswordResetPendingCount, subscribeToPasswordResetPendingCount } from "../services/adminApi";
 import { useSystemName } from "@/context/SystemNameContext";
+import { usePasswordResetCount } from "@/context/PasswordResetCountContext";
 
 const baseLink = "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-gray-300 hover:bg-gray-800 hover:translate-x-1 hover:text-white";
 const activeLink = "bg-brand-primary text-white shadow-lg translate-x-1";
@@ -26,31 +25,7 @@ const NavItemLink = ({ to, icon: Icon, label, end = false, badge = null, onNavig
 
 export default function Sidebar({ isMobileOpen = false, onNavigate = () => {} }) {
   const { systemName } = useSystemName();
-  const [pendingResetCount, setPendingResetCount] = useState(0);
-
-  useEffect(() => {
-    let unsubscribe = () => {};
-
-    const fetchCount = async () => {
-      try {
-        const data = await getPasswordResetPendingCount();
-        setPendingResetCount(data || 0);
-      } catch {
-        // silent
-      }
-    };
-
-    fetchCount();
-
-    unsubscribe = subscribeToPasswordResetPendingCount(
-      (count) => setPendingResetCount(count || 0),
-      () => {
-        // Keep the last known count if the stream is temporarily unavailable.
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
+  const { pendingCount: pendingResetCount } = usePasswordResetCount();
 
   return (
     <aside className={`w-72 bg-gray-900 text-white h-screen flex flex-col min-h-0 fixed top-0 left-0 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:z-auto ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>

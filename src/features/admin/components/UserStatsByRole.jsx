@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getAllUsers } from "../services/adminApi";
 
 const RoleBadge = ({ label, count, color }) => (
@@ -15,13 +15,33 @@ const formatRoleLabel = (role) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-export default function UserStatsByRole() {
+// Build the sorted role list from an overview userStats map ({ ROLE: count, TOTAL: n }).
+const rolesFromStatsMap = (stats) =>
+  Object.entries(stats || {})
+    .filter(([role]) => role !== "TOTAL" && role.toUpperCase() !== "UNKNOWN")
+    .map(([role, count]) => ({ role, label: formatRoleLabel(role), count: Number(count || 0) }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+export default function UserStatsByRole({ stats = null, loading: loadingProp }) {
+  // Parent-managed mode: when a `loading` prop is passed, the parent owns the
+  // data (from overview.userStats) and this component never self-fetches /users.
+  const parentManaged = loadingProp !== undefined;
+  const statsProvided = parentManaged;
+
   const [totalUsers, setTotalUsers] = useState(0);
   const [roleCounts, setRoleCounts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!parentManaged);
   const [error, setError] = useState(null);
 
+  const providedRoles = useMemo(
+    () => (statsProvided ? rolesFromStatsMap(stats) : []),
+    [statsProvided, stats]
+  );
+
   useEffect(() => {
+    if (parentManaged) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -52,9 +72,15 @@ export default function UserStatsByRole() {
     };
 
     fetchData();
-  }, []);
+  }, [parentManaged]);
 
-  if (loading) {
+  const showLoading = parentManaged ? Boolean(loadingProp) : loading;
+  const roles = parentManaged ? providedRoles : roleCounts;
+  const total = parentManaged
+    ? Number(stats?.TOTAL ?? providedRoles.reduce((a, r) => a + r.count, 0))
+    : totalUsers;
+
+  if (showLoading) {
     return (
       <div className="bg-white border border-brand-border rounded-2xl shadow-sm p-6 animate-pulse">
         <div className="h-6 bg-gray-200 rounded w-1/2 mb-5"></div>
@@ -80,12 +106,12 @@ export default function UserStatsByRole() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-lg font-bold text-gray-800">Users by Role</h3>
-          <p className="text-sm text-gray-500">Total registered: {totalUsers}</p>
+          <p className="text-sm text-gray-500">Total registered: {total}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        {roleCounts.map((item, idx) => (
+        {roles.map((item, idx) => (
           <RoleBadge
             key={item.role}
             label={item.label}
