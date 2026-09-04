@@ -3,11 +3,13 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { NotificationProvider } from "@/features/pos/context/NotificationContext";
 import NotificationPanel from "@/features/pos/components/NotificationPanel";
+import { PasswordResetCountProvider } from "@/context/PasswordResetCountContext";
 
 export default function Layout({ children }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
+    <PasswordResetCountProvider>
     <NotificationProvider>
       <div className="flex h-screen bg-gray-50 relative overflow-hidden">
         {isMobileSidebarOpen && (
@@ -31,5 +33,6 @@ export default function Layout({ children }) {
       </div>
       <NotificationPanel />
     </NotificationProvider>
+    </PasswordResetCountProvider>
   );
 }
