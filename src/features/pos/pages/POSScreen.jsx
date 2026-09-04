@@ -4,6 +4,7 @@ import { API_V1 } from '@/lib/config';
 import { useClock } from '@/features/pos/hooks/useClock';
 import { useSupplierPayouts } from '@/features/pos/hooks/useSupplierPayouts';
 import { useCart } from '@/features/pos/hooks/useCart';
+import { useKeyboardShortcuts } from '@/features/pos/hooks/useKeyboardShortcuts';
 import { getServiceOverlayKey, getServiceOverlay, mergeTotalsWithOverlay } from '@/features/pos/utils/serviceOverlay';
 import { buildSaleOrder } from '@/features/pos/utils/buildSaleOrder';
 import { useShift } from '@/features/pos/hooks/useShift';
@@ -43,6 +44,7 @@ import DtvRequestModal from '@/features/pos/modals/DtvRequestModal';
 import MobileRepairModal from '@/features/pos/modals/MobileRepairModal';
 import PriceSelectionModal from '@/features/pos/modals/PriceSelectionModal';
 import SerialSelectionModal from '@/features/pos/modals/SerialSelectionModal';
+import ShortcutHelpModal from '@/features/pos/modals/ShortcutHelpModal';
 
 // Get branch from localStorage or use defaults
 const getBranchId = () => {
@@ -1001,6 +1003,8 @@ function POSContent() {
             setActiveModal(null);
             checkoutKeyRef.current = null; // fresh key for the next sale
 
+            // Ready for the next customer: pull focus back to the scan box.
+            setTimeout(() => { focusSearch(); }, 60);
             setTimeout(() => { setInvoiceId("INV-READY"); }, 3000);
         } catch (err) {
             const msg = err.response?.data?.message || err.response?.data?.error || "Transaction failed";
@@ -1082,6 +1086,64 @@ function POSContent() {
         }
     };
 
+    // Return keyboard focus to the scan box and select its contents.
+    const focusSearch = () => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.focus();
+        el.select?.();
+    };
+
+    // Keyboard cart-row selection (↑/↓). With nothing selected yet, the first
+    // press lands on the most recently scanned line — the one a cashier is most
+    // likely to want to adjust.
+    const handleCartNavigate = (dir) => {
+        if (cart.length === 0) return;
+        setSelectedCartIndex((prev) => {
+            if (prev === null || prev === undefined) return cart.length - 1;
+            if (dir === 'up') return Math.max(0, prev - 1);
+            return Math.min(cart.length - 1, prev + 1);
+        });
+    };
+
+    // Keyboard quantity nudge (+/-) for the selected line (falls back to the last
+    // line). Respects stock limits on increment; use Del, not "-", to remove a line.
+    const handleCartQtyAdjust = (delta) => {
+        if (cart.length === 0) return;
+        const idx = (selectedCartIndex ?? cart.length - 1);
+        if (idx < 0 || idx >= cart.length) return;
+        const item = cart[idx];
+        if (!item || item.isReturn || item.qty < 0) return; // return lines are fixed
+
+        const newQty = item.qty + delta;
+        if (newQty < 1) return; // do not auto-void from "-"; Del handles removal
+
+        if (delta > 0 && !item.isService && item.availableStock != null && newQty > item.availableStock) {
+            addNotification('warning', 'Stock Limit', `Only ${item.availableStock} units of '${item.name}' available.`);
+            return;
+        }
+
+        setCart((prev) => {
+            const next = [...prev];
+            if (!next[idx]) return prev;
+            next[idx] = { ...next[idx], qty: newQty };
+            return next;
+        });
+        if (selectedCartIndex === null || selectedCartIndex === undefined) {
+            setSelectedCartIndex(idx);
+        }
+    };
+
+    // Open inline quantity edit on the selected line (falls back to the last line).
+    const handleEditSelected = () => {
+        if (cart.length === 0) return;
+        const idx = (selectedCartIndex ?? cart.length - 1);
+        if (idx < 0 || idx >= cart.length) return;
+        if (cart[idx]?.isReturn || cart[idx]?.qty < 0) return;
+        setSelectedCartIndex(idx);
+        setEditingCartIndex(idx);
+    };
+
     const handleVoidItem = (index) => {
         const fallbackIndex = selectedCartIndex ?? (cart.length - 1);
         const targetIndex = index !== undefined ? index : fallbackIndex;
@@ -1157,6 +1219,7 @@ function POSContent() {
                     setBillDiscount(0);
                     setActiveModal(null);
                     setInvoiceId("INV-READY");
+                    setTimeout(() => { focusSearch(); }, 60);
                     addNotification('info', 'Bill Held', 'Transaction parked successfully.');
                 } catch (err) {
                     addNotification('error', 'Hold Failed', err.response?.data?.message || 'Could not hold bill.');
@@ -1172,6 +1235,7 @@ function POSContent() {
                 setBillDiscount(0);
                 setActiveModal(null);
                 setInvoiceId("INV-READY");
+                setTimeout(() => { focusSearch(); }, 60);
                 addNotification('warning', 'Bill Cancelled', 'Transaction cleared.');
             });
         }
@@ -1260,46 +1324,27 @@ function POSContent() {
         }
     };
 
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (activeModal && activeModal !== 'FLOAT') {
-                if (e.key === 'Escape') { setActiveModal(null); setConfirmConfig(null); }
-                return;
-            }
-            if (!session.isOpen) return;
-
-            if (e.key === 'F1') { e.preventDefault(); setActiveModal('PRICE_CHECK'); }
-            if (e.key === 'F3') { e.preventDefault(); handleComplexAction('RECALL'); }
-            if (e.key === 'F4') { e.preventDefault(); handleComplexAction('CANCEL'); }
-            if (e.key === 'F6') { e.preventDefault(); setActiveModal('PAID_IN'); }
-            if (e.key === 'F7') { e.preventDefault(); setActiveModal('PAID_OUT'); }
-            if (e.key === '\\') {
-                if (document.activeElement.tagName !== 'INPUT') {
-                    e.preventDefault();
-                    handleComplexAction('PAY_CASH');
-                }
-            }
-            if (e.key === 'F10') { e.preventDefault(); handleComplexAction('PAY_CARD'); }
-            if (e.key === 'F11') { e.preventDefault(); handleComplexAction('PAY_QR'); }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                handleComplexAction('PAY_CASH');
-            }
-            if (e.key === 'Delete') { e.preventDefault(); handleVoidItem(); }
-            if (e.key === 'q' || e.key === 'Q') {
-                if (selectedCartIndex !== null && selectedCartIndex !== undefined) {
-                    e.preventDefault();
-                    setEditingCartIndex(selectedCartIndex);
-                }
-            }
-
-            if (!activeModal && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-                inputRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeModal, cart, session.isOpen, selectedCartIndex]);
+    // Global function-key / chord shortcuts. Cart-context keys (arrows, +, -, Del,
+    // E) live in ControlPanel so they yield to the search box while typing.
+    useKeyboardShortcuts({
+        enabled: session.isOpen,
+        isModalOpen: Boolean(activeModal) && activeModal !== 'FLOAT',
+        onEscape: () => { setActiveModal(null); setConfirmConfig(null); },
+        refocusSearch: () => inputRef.current?.focus(),
+        handlers: {
+            priceCheck: () => setActiveModal('PRICE_CHECK'),
+            focusSearch,
+            recall: () => handleComplexAction('RECALL'),
+            cancel: () => handleComplexAction('CANCEL'),
+            hold: () => handleComplexAction('HOLD'),
+            discount: () => setActiveModal('DISCOUNT'),
+            paidIn: () => setActiveModal('PAID_IN'),
+            paidOut: () => setActiveModal('PAID_OUT'),
+            payCash: () => handleComplexAction('PAY_CASH'),
+            payCard: () => handleComplexAction('PAY_CARD'),
+            payQr: () => handleComplexAction('PAY_QR'),
+        },
+    });
 
     return (
         <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden font-sans relative">
@@ -1455,6 +1500,10 @@ function POSContent() {
                     isEnabled={session.isOpen}
                     onSelectProduct={handleAddToCart}
                     branchId={branchId}
+                    onCartNavigate={handleCartNavigate}
+                    onCartQtyAdjust={handleCartQtyAdjust}
+                    onEditSelected={handleEditSelected}
+                    onShowHelp={() => setActiveModal('SHORTCUT_HELP')}
                 />
                 <ProductGrid
                     onAddToCart={handleAddToCart}
@@ -1726,6 +1775,10 @@ function POSContent() {
                         inputRef.current?.focus();
                     }}
                 />
+            )}
+
+            {activeModal === 'SHORTCUT_HELP' && (
+                <ShortcutHelpModal onClose={() => { setActiveModal(null); focusSearch(); }} />
             )}
 
             {/* Supplier Payment Request Modal */}

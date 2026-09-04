@@ -13,7 +13,11 @@ export default function ControlPanel({
   onAction,
   isEnabled,
   onSelectProduct,
-  branchId // Added branchId prop
+  branchId, // Added branchId prop
+  onCartNavigate,
+  onCartQtyAdjust,
+  onEditSelected,
+  onShowHelp,
 }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -128,6 +132,23 @@ export default function ControlPanel({
     }
 
     if (!showSuggestions || suggestions.length === 0) {
+      // Idle scan box (nothing typed) → repurpose navigation keys to drive the
+      // cart with no mouse. While the cashier is typing a code these keys behave
+      // normally in the field, so manual entry (incl. letter/dash SKUs) is safe.
+      const idle = !inputBuffer || inputBuffer.trim().length === 0;
+      if (idle) {
+        switch (e.key) {
+          case 'ArrowDown': e.preventDefault(); onCartNavigate?.('down'); return;
+          case 'ArrowUp': e.preventDefault(); onCartNavigate?.('up'); return;
+          case '+':
+          case '=': e.preventDefault(); onCartQtyAdjust?.(1); return;
+          case '-': e.preventDefault(); onCartQtyAdjust?.(-1); return;
+          case '*': e.preventDefault(); onEditSelected?.(); return;
+          case 'Delete': e.preventDefault(); onVoid?.(); return;
+          case '?': e.preventDefault(); onShowHelp?.(); return;
+          default: break;
+        }
+      }
       if (e.key === 'Enter') onScan();
       return;
     }
@@ -181,6 +202,25 @@ export default function ControlPanel({
           />
           <button onClick={onScan} className="bg-blue-600 text-white px-5 font-bold hover:bg-blue-700 transition active:bg-blue-800 text-sm tracking-wide">
             ENTER
+          </button>
+        </div>
+
+        {/* Keyboard hint / help trigger */}
+        <div className="mt-1.5 flex items-center justify-between px-0.5">
+          <span className="text-[10px] text-slate-400 font-medium">
+            <span className="font-mono font-bold text-slate-500">F2</span> search
+            <span className="mx-1 text-slate-300">·</span>
+            <span className="font-mono font-bold text-slate-500">↑↓</span> select
+            <span className="mx-1 text-slate-300">·</span>
+            <span className="font-mono font-bold text-slate-500">+ −</span> qty
+          </span>
+          <button
+            type="button"
+            onClick={onShowHelp}
+            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5"
+            title="Show keyboard shortcuts (press ?)"
+          >
+            Shortcuts <span className="font-mono border border-slate-300 rounded px-1 leading-none">?</span>
           </button>
         </div>
 
@@ -246,6 +286,7 @@ export default function ControlPanel({
           <button onClick={() => onAction('HOLD')} className="bg-yellow-50 border border-yellow-200 rounded shadow-sm hover:bg-yellow-100 flex items-center justify-center gap-1 h-full active:scale-95">
             <Hand className="w-4 h-4 text-yellow-600" />
             <span className="text-xs font-bold text-yellow-800">Hold</span>
+            <span className="text-yellow-600/60 text-[9px] font-mono">(F8)</span>
           </button>
           <button onClick={() => onAction('RETURN')} className="bg-rose-50 border border-rose-200 rounded shadow-sm hover:bg-rose-100 flex items-center justify-center gap-1 h-full active:scale-95">
             <CornerUpLeft className="w-4 h-4 text-rose-600" />
@@ -301,6 +342,7 @@ export default function ControlPanel({
           <button onClick={() => onOpenModal('DISCOUNT')} className="h-10 bg-yellow-50 border border-yellow-200 rounded shadow-sm flex items-center justify-center gap-1 hover:bg-yellow-100 active:scale-95">
             <Percent className="w-4 h-4 text-yellow-600" />
             <span className="text-[10px] font-bold text-yellow-800">Disc</span>
+            <span className="text-yellow-600/60 text-[9px] font-mono">F9</span>
           </button>
         </div>
 
