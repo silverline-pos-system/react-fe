@@ -18,6 +18,7 @@ import BrandManagementScreen from './BrandManagementScreen';
 import IMEISearchScreen from './IMEISearchScreen';
 
 import { POManagementScreen, SupplierManagementScreen, GrnScreen } from '@/features/procurement';
+import PromotionsScreen from '@/features/inventory/pages/PromotionsScreen';
 
 import StockOverviewScreen from './StockOverviewScreen';
 
@@ -55,6 +56,7 @@ const InventorySystemContent = () => {
     const { systemName } = useSystemName();
     const INVENTORY_ACTIVE_SCREEN_KEY = 'inventory.activeScreen';
     const ALLOWED_INVENTORY_SCREENS = [
+        'promotions',
         'item-list',
         'item-detail',
         'po-mgmt',
@@ -590,7 +592,12 @@ const InventorySystemContent = () => {
                 { id: 'stock-valuation', label: 'Stock Valuation', icon: TrendingUp },
                 { id: 'stock-aging', label: 'Stock Aging Report', icon: Clock },
             ]
-        }
+        },
+        ...(['MANAGER', 'SUPER_ADMIN'].includes(String(userRole).toUpperCase()) ? [{
+            id: 'marketing', label: 'Marketing', icon: Tag, screens: [
+                { id: 'promotions', label: 'Promotions', icon: Tag },
+            ]
+        }] : [])
     ];
 
     const renderScreen = () => {
@@ -716,6 +723,12 @@ const InventorySystemContent = () => {
                     setIsEditMode={setIsEditMode}
                     setEditingType={setEditingType}
                     handleSaveEdit={handleSaveEdit}
+                />;
+            case 'promotions':
+                return <PromotionsScreen
+                    items={items}
+                    categories={categories}
+                    branches={branches}
                 />;
             case 'dispatch-mgmt':
                 return <GrnScreen
