@@ -102,10 +102,6 @@ export default function LoginPage() {
             // Branch Manager goes to Manager Dashboard
             navigate('/manager');
             break;
-          case 'STORE_KEEPER':
-            // Stock Keeper goes to Inventory
-            navigate('/inventory');
-            break;
           case 'CASHIER':
           case 'SUPERVISOR':
           default:

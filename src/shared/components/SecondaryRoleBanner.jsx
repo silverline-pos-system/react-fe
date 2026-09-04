@@ -6,7 +6,6 @@ import { getMySecondaryRole } from "@/features/manager/services/managerService";
 const ROLE_NAV_MAP = {
   CASHIER: { path: "/pos", label: "POS" },
   SUPERVISOR: { path: "/pos", label: "POS" },
-  STORE_KEEPER: { path: "/inventory", label: "Inventory" },
   DTV_TECHNICIAN: { path: "/dtv-tech", label: "DTV" },
   MOBILE_TECHNICIAN: { path: "/mobile-tech", label: "Mobile Repair" },
   MANAGER: { path: "/manager", label: "Manager" },
@@ -16,7 +15,6 @@ const ROLE_NAV_MAP = {
 const ROLE_COLORS = {
   CASHIER: "from-green-500 to-emerald-600",
   SUPERVISOR: "from-blue-500 to-indigo-600",
-  STORE_KEEPER: "from-amber-500 to-orange-600",
   DTV_TECHNICIAN: "from-indigo-500 to-violet-600",
   MOBILE_TECHNICIAN: "from-emerald-500 to-teal-600",
   MANAGER: "from-blue-600 to-blue-800",
@@ -27,7 +25,6 @@ function getRoleLabel(role) {
   const labels = {
     CASHIER: "Cashier",
     SUPERVISOR: "Supervisor",
-    STORE_KEEPER: "Store Keeper",
     DTV_TECHNICIAN: "DTV Tech",
     MOBILE_TECHNICIAN: "Mobile Tech",
     MANAGER: "Manager",
